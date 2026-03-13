@@ -133,16 +133,16 @@ class ArkanoidApp:
 
         if self.state == "playing":
             if self.launched:
-                draw_footer(lcd, "Top reset", GRAY)
+                draw_footer(lcd, "A reset", GRAY)
             else:
-                draw_footer(lcd, "Bottom launch", GRAY)
-                lcd.text("Top reset", 80, 71, GRAY)
+                draw_footer(lcd, "B launch", GRAY)
+                lcd.text("A reset", 80, 71, GRAY)
         elif self.state == "won":
             draw_footer(lcd, "Wall clear", GREEN)
-            lcd.text("Top restart", 72, 71, GREEN)
+            lcd.text("A restart", 72, 71, GREEN)
         else:
             draw_footer(lcd, "No lives", RED)
-            lcd.text("Top restart", 72, 71, RED)
+            lcd.text("A restart", 72, 71, RED)
 
     def step(self, runtime):
         buttons = runtime.buttons

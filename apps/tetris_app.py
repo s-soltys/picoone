@@ -202,14 +202,14 @@ class TetrisApp:
         elif self.state == "lost":
             lcd.text("LOCKED", 92, 48, RED)
         else:
-            lcd.text("CTRL", 94, 48, GRAY)
+            lcd.text("B", 94, 48, GRAY)
             lcd.text("pause", 90, 58, GRAY)
 
         if self.state == "playing":
-            draw_footer(lcd, "Top rotate", GRAY)
-            lcd.text("Bottom drop", 64, 71, GRAY)
+            draw_footer(lcd, "A rotate", GRAY)
+            lcd.text("B drop", 64, 71, GRAY)
         else:
-            draw_footer(lcd, "Top restart", RED)
+            draw_footer(lcd, "A restart", RED)
 
     def step(self, runtime):
         buttons = runtime.buttons
@@ -221,7 +221,7 @@ class TetrisApp:
             else:
                 self.reset_game()
 
-        if buttons.pressed("CTRL") and self.state == "playing":
+        if buttons.pressed("B") and self.state == "playing":
             self.paused = not self.paused
 
         if self.state == "playing" and not self.paused:

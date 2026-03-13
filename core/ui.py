@@ -5,9 +5,9 @@ SCREEN_W = 160
 SCREEN_H = 80
 HEADER_H = 10
 FOOTER_H = 10
-TOP_LABEL = "Top"
-BOTTOM_LABEL = "Bottom"
-HOME_HINT = "Top+Bottom home"
+TOP_LABEL = "A"
+BOTTOM_LABEL = "B"
+HOME_HINT = "A+Bottom home"
 
 
 def fit_text(text, max_chars):

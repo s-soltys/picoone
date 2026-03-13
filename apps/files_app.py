@@ -129,7 +129,7 @@ class FilesApp:
             lcd.text("file", 4, 32, WHITE)
             lcd.text(item["size"], 4, 44, WHITE)
             lcd.text(fit_text(item["meta"], 18), 4, 58, GRAY)
-            draw_footer(lcd, "Top or Bottom")
+            draw_footer(lcd, "A or Bottom")
             return None
 
         lcd.text(fit_text(self.current_path(), 18), 4, 12, TEAL)
@@ -148,6 +148,6 @@ class FilesApp:
             lcd.text(fit_text(item["name"], 15), 14, y, BLACK if selected else WHITE)
             y += 10
 
-        draw_footer(lcd, "Bottom open")
-        lcd.text("Top up", 88, 71, GRAY)
+        draw_footer(lcd, "B open")
+        lcd.text("A up", 88, 71, GRAY)
         return None

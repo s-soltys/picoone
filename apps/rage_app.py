@@ -172,7 +172,7 @@ class RageApp:
         if buttons.pressed("B") and self.attack_timer == 0:
             self.attack_timer = 7
             self.do_attack(False)
-        if buttons.pressed("CTRL") and self.special_cooldown == 0:
+        if buttons.pressed("B") and self.special_cooldown == 0:
             self.special_timer = 10
             self.special_cooldown = 45
             self.do_attack(True)
@@ -288,12 +288,12 @@ class RageApp:
             lcd.text(text, x, 32, YELLOW)
 
         if self.state == "playing":
-            footer = "Bottom punch"
+            footer = "B punch"
         else:
-            footer = "Top restart"
+            footer = "A restart"
         draw_footer(lcd, footer, GRAY)
         if self.state == "playing":
-            lcd.text("CTRL spin", 80, 71, GRAY)
+            lcd.text("B spin", 80, 71, GRAY)
 
     def step(self, runtime):
         buttons = runtime.buttons

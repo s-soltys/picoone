@@ -58,8 +58,8 @@ class PaintApp:
             lcd.fill_rect(palette_x, py, 16, 6, PALETTE[index])
             lcd.rect(palette_x, py, 16, 6, BLACK if index == self.color_index else GRAY)
 
-        draw_footer(lcd, "Bottom paint", WHITE)
-        lcd.text("Top erase", 78, 71, WHITE)
+        draw_footer(lcd, "B paint", WHITE)
+        lcd.text("A erase", 78, 71, WHITE)
 
     def step(self, runtime):
         buttons = runtime.buttons
@@ -73,7 +73,7 @@ class PaintApp:
             self.cursor_y = max(0, self.cursor_y - 1)
         if buttons.repeat("DOWN", 140, 70):
             self.cursor_y = min(CANVAS_H - 1, self.cursor_y + 1)
-        if buttons.pressed("CTRL"):
+        if buttons.pressed("B"):
             self.color_index = (self.color_index + 1) % len(PALETTE)
 
         if buttons.down("B"):

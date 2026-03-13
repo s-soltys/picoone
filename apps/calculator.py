@@ -141,7 +141,7 @@ class CalculatorApp:
             self.cursor_y = min(3, self.cursor_y + 1)
         if buttons.pressed("A"):
             self.backspace()
-        if buttons.pressed("CTRL"):
+        if buttons.pressed("B"):
             self.clear()
         if buttons.pressed("B"):
             self.press_key(KEYPAD[self.cursor_y][self.cursor_x])
@@ -154,7 +154,7 @@ class CalculatorApp:
         if self.error:
             lcd.text(fit_text(self.error, 19), 4, 24, YELLOW)
         else:
-            result = self.result if self.result else "Bottom = eval"
+            result = self.result if self.result else "B = eval"
             lcd.text(fit_text(result, 19), 4, 24, CYAN)
 
         for row in range(4):
@@ -167,6 +167,6 @@ class CalculatorApp:
                 lcd.rect(x, y, 38, 10, YELLOW if selected else GRAY)
                 lcd.text(key, x + 15, y + 1, ORANGE if selected else GREEN)
 
-        lcd.text("Top del", 2, 70, GRAY)
-        lcd.text("CTRL clr", 56, 70, GRAY)
+        lcd.text("A del", 2, 70, GRAY)
+        lcd.text("B clr", 56, 70, GRAY)
         return None

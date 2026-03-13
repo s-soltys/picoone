@@ -198,16 +198,16 @@ class PacmanApp:
             lcd.pixel(gx + 1, gy - 1, WHITE)
 
         if self.state == "playing" and not self.paused:
-            draw_footer(lcd, "Bottom pause", GRAY)
+            draw_footer(lcd, "B pause", GRAY)
         elif self.paused:
             draw_footer(lcd, "Paused", CYAN)
-            lcd.text("Bottom resume", 60, 71, CYAN)
+            lcd.text("B resume", 60, 71, CYAN)
         elif self.state == "won":
             draw_footer(lcd, "Maze clear", GREEN)
-            lcd.text("Top restart", 72, 71, GREEN)
+            lcd.text("A restart", 72, 71, GREEN)
         else:
             draw_footer(lcd, "Caught", RED)
-            lcd.text("Top restart", 72, 71, RED)
+            lcd.text("A restart", 72, 71, RED)
 
     def step(self, runtime):
         buttons = runtime.buttons

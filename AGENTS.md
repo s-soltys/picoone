@@ -52,18 +52,20 @@ Apps are registered in [apps/__init__.py](/Users/szymon/picotest/picoone/apps/__
 
 ## Wi-Fi Scope
 
-The Wi-Fi app is read-only by design in this repo version.
+The Wi-Fi app supports scanning, joining, and storing credentials in this repo version.
 
 Allowed:
 - activate STA mode
 - read current status
 - perform scans
-- render SSID/security/RSSI summaries
+- connect to open or secured networks
+- store successful credentials in `wifi_profiles.txt`
+- provide an on-screen password-entry flow
 
-Not allowed unless explicitly requested:
-- join networks
-- store credentials
-- build a password-entry UI
+Still avoid unless explicitly requested:
+- enterprise auth flows
+- hidden-SSID join UX
+- remote/cloud config backends
 
 ## Validation
 

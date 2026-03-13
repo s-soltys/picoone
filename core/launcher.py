@@ -60,7 +60,7 @@ class Launcher:
         self.lcd.text("PICO", center_x("PICO"), 18, CYAN)
         self.lcd.text("LAUNCHER", center_x("LAUNCHER"), 32, WHITE)
         self.lcd.text("Pico 2 W", center_x("Pico 2 W"), 48, YELLOW)
-        self.lcd.text("Top=A Bottom=B", 16, 56, GRAY)
+        self.lcd.text("A=A Bottom=B", 16, 56, GRAY)
         self.lcd.text(HOME_HINT, 20, 66, GRAY)
         self.lcd.display()
         time.sleep(0.7)
@@ -83,8 +83,8 @@ class Launcher:
             is_selected = (start + offset) == self.selected_index
             draw_tile(self.lcd, x, y, 77, 27, app.title, is_selected, app.accent, app.draw_icon, True)
 
-        draw_footer(self.lcd, "Bottom open", WHITE)
-        self.lcd.text("CTRL page", 80, 71, WHITE)
+        draw_footer(self.lcd, "B open", WHITE)
+        self.lcd.text("B page", 80, 71, WHITE)
 
     def step_home(self):
         if self.buttons.repeat("LEFT"):
@@ -95,7 +95,7 @@ class Launcher:
             self.move_selection(-2)
         if self.buttons.repeat("DOWN"):
             self.move_selection(2)
-        if self.buttons.pressed("CTRL"):
+        if self.buttons.pressed("B"):
             self.next_page()
         if self.buttons.pressed("B"):
             self.open_app(self.selected_index)

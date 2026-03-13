@@ -183,7 +183,7 @@ class MinesApp:
             self.reset_board()
 
         if self.state == "playing":
-            if buttons.pressed("CTRL"):
+            if buttons.pressed("B"):
                 self.toggle_flag(self.cursor_x, self.cursor_y)
             if buttons.pressed("B"):
                 self.reveal_cell(self.cursor_x, self.cursor_y)
@@ -198,6 +198,6 @@ class MinesApp:
         elif self.state == "lost":
             draw_footer(lcd, "Boom. Top retry", RED)
         else:
-            draw_footer(lcd, "Bottom dig", GRAY)
-            lcd.text("CTRL flag", 80, 71, GRAY)
+            draw_footer(lcd, "B dig", GRAY)
+            lcd.text("B flag", 80, 71, GRAY)
         return None

@@ -149,14 +149,14 @@ class SpaceInvadersApp:
         lcd.text("S" + str(self.score), 120, 12, WHITE)
 
         if self.state == "playing":
-            draw_footer(lcd, "Bottom fire", GRAY)
-            lcd.text("Top reset", 80, 71, GRAY)
+            draw_footer(lcd, "B fire", GRAY)
+            lcd.text("A reset", 80, 71, GRAY)
         elif self.state == "won":
             draw_footer(lcd, "Wave clear", CYAN)
-            lcd.text("Top restart", 72, 71, CYAN)
+            lcd.text("A restart", 72, 71, CYAN)
         else:
             draw_footer(lcd, "Invaded", RED)
-            lcd.text("Top restart", 72, 71, RED)
+            lcd.text("A restart", 72, 71, RED)
 
     def step(self, runtime):
         buttons = runtime.buttons

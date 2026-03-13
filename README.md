@@ -12,7 +12,7 @@ The device now boots into a launcher instead of jumping straight into the galaxy
 
 Included apps:
 - `Galaxy`: the original galaxy/system/planet explorer
-- `Wi-Fi`: current radio status plus real Pico W SSID scanning
+- `Wi-Fi`: status, scan, join flow, and saved passwords
 - `Calculator`: four-function on-screen calculator
 - `Files`: fake read-only file explorer backed by a static in-memory tree
 - `Mines`: compact minesweeper
@@ -34,7 +34,7 @@ Shared controls:
 
 App-specific notes:
 - `Galaxy`: opens with a splash screen, `CTRL` jumps to next galaxy/system, `Top` backs out one level
-- `Wi-Fi`: `CTRL` rescans nearby SSIDs
+- `Wi-Fi`: `Bottom` joins, `Top` cycles networks, `CTRL` rescans or edits a password, and secure joins use an on-screen keyboard that works with just `Top` and `Bottom`
 - `Calculator`: `Top` deletes one character, `CTRL` clears all
 - `Files`: `Top` goes up one level, `Bottom` opens folder or file preview
 - `Mines`: `Bottom` reveals a tile, `CTRL` toggles flag, `Top` restarts
@@ -75,17 +75,26 @@ Legacy helper scripts are still present at repo root:
 
 ## Wi-Fi App Notes
 
-The Wi-Fi app is intentionally status-only in v1.
+The Wi-Fi app now supports joining networks from the device itself.
 
 It can:
-- show whether station mode is active
-- show IP data when already connected
-- scan and list nearby SSIDs with channel, RSSI, and security summary
+- show current connection state and IP data
+- scan and list nearby SSIDs with signal/security summary
+- connect to open networks directly
+- connect to secured networks through an on-screen password keyboard
+- store successful passwords in `wifi_profiles.txt` on the device
+- reuse credentials from `secrets.py` as a fallback for an existing known SSID
 
-It does not:
-- connect to networks
-- store passwords
-- edit `secrets.py`
+Keyboard flow:
+- `Top` cycles through keys
+- `Bottom` picks the highlighted key
+- `123`, `ABC`, `abc`, and `!?` keys switch keyboard pages, so the flow works with only `Top` and `Bottom`
+- `CTRL` is an optional shortcut for changing keyboard page
+- D-pad is optional for faster navigation, but the flow is usable with only `Top` and `Bottom`
+
+Current limits:
+- hidden SSIDs are not joinable from the UI yet
+- there is no WPA Enterprise flow
 
 ## Deploying
 

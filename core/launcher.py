@@ -3,7 +3,7 @@ import time
 
 from lcd import LCD_0inch96, BLACK, CYAN, WHITE, YELLOW, GRAY
 from core.buttons import ButtonManager
-from core.ui import draw_header, draw_footer, draw_tile, center_x
+from core.ui import draw_header, draw_footer, draw_tile, center_x, HOME_HINT
 from core.wifi import WiFiHelper
 from apps import build_apps
 
@@ -61,14 +61,14 @@ class Launcher:
         self.lcd.text("LAUNCHER", center_x("LAUNCHER"), 32, WHITE)
         self.lcd.text("Pico 2 W", center_x("Pico 2 W"), 48, YELLOW)
         self.lcd.text("Top=A Bottom=B", 16, 56, GRAY)
-        self.lcd.text("A+B returns home", 16, 66, GRAY)
+        self.lcd.text(HOME_HINT, 20, 66, GRAY)
         self.lcd.display()
         time.sleep(0.7)
 
     def draw_home(self):
         self.lcd.fill(BLACK)
         detail = str(self.current_page() + 1) + "/" + str(self.page_count())
-        draw_header(self.lcd, "Launcher", detail, CYAN)
+        draw_header(self.lcd, "Launcher", detail, WHITE)
 
         start = self.current_page() * 4
         layout = [
@@ -81,9 +81,10 @@ class Launcher:
         for offset, app in enumerate(self.apps[start:start + 4]):
             x, y = layout[offset]
             is_selected = (start + offset) == self.selected_index
-            draw_tile(self.lcd, x, y, 77, 27, app.title, is_selected, app.accent, app.draw_icon)
+            draw_tile(self.lcd, x, y, 77, 27, app.title, is_selected, app.accent, app.draw_icon, True)
 
-        draw_footer(self.lcd, "B open  CTRL page")
+        draw_footer(self.lcd, "Bottom open", WHITE)
+        self.lcd.text("CTRL page", 80, 71, WHITE)
 
     def step_home(self):
         if self.buttons.repeat("LEFT"):

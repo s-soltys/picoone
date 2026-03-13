@@ -1,5 +1,5 @@
 from lcd import BLACK, WHITE, CYAN, YELLOW, GREEN, GRAY, ORANGE
-from core.ui import draw_header, draw_footer, fit_text
+from core.ui import draw_header, draw_footer, fit_text, HOME_HINT
 
 
 class WiFiStatusApp:
@@ -13,13 +13,15 @@ class WiFiStatusApp:
         self.scroll = 0
         self.error = ""
 
-    def draw_icon(self, lcd, cx, cy, selected):
-        lcd.pixel(cx, cy + 7, WHITE)
-        lcd.ellipse(cx, cy + 4, 3, 2, GREEN, False)
-        lcd.ellipse(cx, cy + 1, 6, 4, GREEN, False)
-        lcd.ellipse(cx, cy - 2, 9, 6, GREEN, False)
-        if selected:
-            lcd.ellipse(cx, cy + 2, 12, 10, YELLOW, False)
+    def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
+        ring = BLACK if monochrome and selected else (WHITE if monochrome else YELLOW)
+        ink = BLACK if monochrome and selected else (WHITE if monochrome else GREEN)
+        lcd.pixel(cx, cy + 7, ink)
+        lcd.ellipse(cx, cy + 4, 3, 2, ink, False)
+        lcd.ellipse(cx, cy + 1, 6, 4, ink, False)
+        lcd.ellipse(cx, cy - 2, 9, 6, ink, False)
+        if not monochrome and selected:
+            lcd.ellipse(cx, cy + 2, 12, 10, ring, False)
 
     def on_open(self, runtime):
         self.selected = 0
@@ -63,7 +65,7 @@ class WiFiStatusApp:
         if not status["supported"]:
             lcd.text("No network", 4, 18, ORANGE)
             lcd.text("module here", 4, 30, WHITE)
-            draw_footer(lcd, "A+B home")
+            draw_footer(lcd, HOME_HINT)
             return None
 
         if status["connected"]:

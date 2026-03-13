@@ -37,14 +37,14 @@ class MinesApp:
         self.revealed_count = 0
         self.exploded = None
 
-    def draw_icon(self, lcd, cx, cy, selected):
-        lcd.ellipse(cx, cy, 7, 7, GREEN, False)
-        lcd.hline(cx - 8, cy, 17, WHITE)
-        lcd.vline(cx, cy - 8, 17, WHITE)
-        lcd.pixel(cx - 5, cy - 5, RED)
-        lcd.pixel(cx + 5, cy + 5, RED)
-        if selected:
-            lcd.ellipse(cx, cy, 12, 10, YELLOW, False)
+    def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
+        ink = BLACK if monochrome and selected else (WHITE if monochrome else GREEN)
+        mark = BLACK if monochrome and selected else (WHITE if monochrome else RED)
+        lcd.ellipse(cx, cy, 7, 7, ink, False)
+        lcd.hline(cx - 8, cy, 17, ink)
+        lcd.vline(cx, cy - 8, 17, ink)
+        lcd.pixel(cx - 5, cy - 5, mark)
+        lcd.pixel(cx + 5, cy + 5, mark)
 
     def on_open(self, runtime):
         self.reset_board()
@@ -194,9 +194,10 @@ class MinesApp:
         self.draw_grid(lcd)
 
         if self.state == "won":
-            draw_footer(lcd, "Cleared! A new", CYAN)
+            draw_footer(lcd, "Cleared! Top new", CYAN)
         elif self.state == "lost":
-            draw_footer(lcd, "Boom. A retry", RED)
+            draw_footer(lcd, "Boom. Top retry", RED)
         else:
-            draw_footer(lcd, "B dig CTRL flag", GRAY)
+            draw_footer(lcd, "Bottom dig", GRAY)
+            lcd.text("CTRL flag", 80, 71, GRAY)
         return None

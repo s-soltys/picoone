@@ -61,12 +61,12 @@ class FilesApp:
         self.scroll = 0
         self.preview = None
 
-    def draw_icon(self, lcd, cx, cy, selected):
-        lcd.rect(cx - 10, cy - 6, 20, 12, AMBER)
-        lcd.fill_rect(cx - 8, cy - 8, 7, 4, AMBER)
-        lcd.hline(cx - 9, cy - 1, 18, WHITE)
-        if selected:
-            lcd.ellipse(cx, cy, 13, 9, YELLOW, False)
+    def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
+        ink = BLACK if monochrome and selected else (WHITE if monochrome else AMBER)
+        detail = BLACK if monochrome and selected else WHITE
+        lcd.rect(cx - 10, cy - 6, 20, 12, ink)
+        lcd.fill_rect(cx - 8, cy - 8, 7, 4, ink)
+        lcd.hline(cx - 9, cy - 1, 18, detail)
 
     def on_open(self, runtime):
         self.stack = [FAKE_TREE]
@@ -129,7 +129,7 @@ class FilesApp:
             lcd.text("file", 4, 32, WHITE)
             lcd.text(item["size"], 4, 44, WHITE)
             lcd.text(fit_text(item["meta"], 18), 4, 58, GRAY)
-            draw_footer(lcd, "A/B close")
+            draw_footer(lcd, "Top or Bottom")
             return None
 
         lcd.text(fit_text(self.current_path(), 18), 4, 12, TEAL)
@@ -148,5 +148,6 @@ class FilesApp:
             lcd.text(fit_text(item["name"], 15), 14, y, BLACK if selected else WHITE)
             y += 10
 
-        draw_footer(lcd, "B open  A up")
+        draw_footer(lcd, "Bottom open")
+        lcd.text("Top up", 88, 71, GRAY)
         return None

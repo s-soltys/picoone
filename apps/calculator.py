@@ -24,15 +24,16 @@ class CalculatorApp:
         self.error = ""
         self.just_evaluated = False
 
-    def draw_icon(self, lcd, cx, cy, selected):
-        lcd.rect(cx - 10, cy - 9, 20, 18, ORANGE)
-        lcd.fill_rect(cx - 8, cy - 7, 16, 5, GREEN)
-        lcd.hline(cx - 6, cy + 1, 4, WHITE)
-        lcd.vline(cx - 4, cy - 1, 4, WHITE)
-        lcd.hline(cx + 2, cy, 4, WHITE)
-        lcd.hline(cx + 2, cy + 3, 4, WHITE)
-        if selected:
-            lcd.ellipse(cx, cy, 13, 11, YELLOW, False)
+    def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
+        frame = BLACK if monochrome and selected else (WHITE if monochrome else ORANGE)
+        screen = BLACK if monochrome and selected else (WHITE if monochrome else GREEN)
+        mark = BLACK if monochrome and selected else WHITE
+        lcd.rect(cx - 10, cy - 9, 20, 18, frame)
+        lcd.fill_rect(cx - 8, cy - 7, 16, 5, screen)
+        lcd.hline(cx - 6, cy + 1, 4, mark)
+        lcd.vline(cx - 4, cy - 1, 4, mark)
+        lcd.hline(cx + 2, cy, 4, mark)
+        lcd.hline(cx + 2, cy + 3, 4, mark)
 
     def on_open(self, runtime):
         self.cursor_x = 0
@@ -153,7 +154,7 @@ class CalculatorApp:
         if self.error:
             lcd.text(fit_text(self.error, 19), 4, 24, YELLOW)
         else:
-            result = self.result if self.result else "B = eval"
+            result = self.result if self.result else "Bottom = eval"
             lcd.text(fit_text(result, 19), 4, 24, CYAN)
 
         for row in range(4):
@@ -166,6 +167,6 @@ class CalculatorApp:
                 lcd.rect(x, y, 38, 10, YELLOW if selected else GRAY)
                 lcd.text(key, x + 15, y + 1, ORANGE if selected else GREEN)
 
-        lcd.text("A del", 2, 70, GRAY)
+        lcd.text("Top del", 2, 70, GRAY)
         lcd.text("CTRL clr", 56, 70, GRAY)
         return None

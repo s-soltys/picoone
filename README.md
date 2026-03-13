@@ -17,23 +17,33 @@ Included apps:
 - `Files`: fake read-only file explorer backed by a static in-memory tree
 - `Mines`: compact minesweeper
 - `Rage`: small side-scrolling beat-em-up inspired by Streets of Rage
+- `Invaders`: arcade shooter
+- `Pac-Man`: maze chase
+- `Arkanoid`: brick breaker
+- `Tetris`: falling-block puzzle
+- `Paint`: simple pixel painter
 
 ## Controls
 
 Shared controls:
 - D-pad: move selection / scroll / pan
-- `A`: top action button
-- `B`: bottom action button, open app or activate highlighted item
+- `Top (A)`: top action button
+- `Bottom (B)`: bottom action button, open app or activate highlighted item
 - `CTRL`: app-specific secondary action
-- `A + B`: global home shortcut, returns to the launcher from any app
+- `Top + Bottom`: global home shortcut, returns to the launcher from any app
 
 App-specific notes:
-- `Galaxy`: opens with a splash screen, `CTRL` jumps to next galaxy/system, top `A` backs out one level
+- `Galaxy`: opens with a splash screen, `CTRL` jumps to next galaxy/system, `Top` backs out one level
 - `Wi-Fi`: `CTRL` rescans nearby SSIDs
-- `Calculator`: top `A` deletes one character, `CTRL` clears all
-- `Files`: top `A` goes up one level, bottom `B` opens folder or file preview
-- `Mines`: bottom `B` reveals a tile, `CTRL` toggles flag, top `A` restarts
-- `Rage`: D-pad moves, bottom `B` punches, `CTRL` uses a spin attack, top `A` restarts after defeat/clear
+- `Calculator`: `Top` deletes one character, `CTRL` clears all
+- `Files`: `Top` goes up one level, `Bottom` opens folder or file preview
+- `Mines`: `Bottom` reveals a tile, `CTRL` toggles flag, `Top` restarts
+- `Rage`: D-pad moves, `Bottom` punches, `CTRL` uses a spin attack, `Top` restarts after defeat/clear
+- `Invaders`: D-pad moves, `Bottom` fires, `Top` restarts
+- `Pac-Man`: D-pad steers, `Bottom` pauses, `Top` restarts
+- `Arkanoid`: D-pad moves, `Bottom` launches, `Top` restarts
+- `Tetris`: D-pad moves, `Top` rotates, `Bottom` hard-drops
+- `Paint`: D-pad moves, `Bottom` paints, `Top` erases, `CTRL` changes color
 
 ## Project Layout
 
@@ -41,7 +51,7 @@ App-specific notes:
 - [lcd.py](/Users/szymon/picotest/picoone/lcd.py): LCD driver
 - [galaxy.py](/Users/szymon/picotest/picoone/galaxy.py): galaxy generation and rendering engine
 - [core/launcher.py](/Users/szymon/picotest/picoone/core/launcher.py): shared runtime and home screen
-- [core/buttons.py](/Users/szymon/picotest/picoone/core/buttons.py): GPIO input handling and `A + B` home-chord detection
+- [core/buttons.py](/Users/szymon/picotest/picoone/core/buttons.py): GPIO input handling and `Top + Bottom` home-chord detection
 - [core/wifi.py](/Users/szymon/picotest/picoone/core/wifi.py): Pico W network helpers
 - [core/ui.py](/Users/szymon/picotest/picoone/core/ui.py): shared drawing helpers
 - [apps/](/Users/szymon/picotest/picoone/apps): launcher apps
@@ -56,7 +66,7 @@ Legacy helper scripts are still present at repo root:
 1. Create a new app class under `apps/`.
 2. Give it `app_id`, `title`, `accent`, `draw_icon()`, `on_open()`, and `step()` methods.
 3. Register it in [apps/__init__.py](/Users/szymon/picotest/picoone/apps/__init__.py).
-4. Keep navigation on the shared button model and do not bypass the global `A + B` home gesture.
+4. Keep navigation on the shared button model and do not bypass the global `Top + Bottom` home gesture.
 
 `step(runtime)` is called once per frame. Use:
 - `runtime.lcd` for drawing

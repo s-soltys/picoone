@@ -40,14 +40,15 @@ class RageApp:
         self.message_timer = 0
         self.message = ""
 
-    def draw_icon(self, lcd, cx, cy, selected):
-        lcd.ellipse(cx, cy - 3, 4, 4, ORANGE, True)
-        lcd.rect(cx - 4, cy + 1, 8, 7, CYAN)
-        lcd.hline(cx - 8, cy + 4, 5, YELLOW)
-        lcd.hline(cx + 4, cy + 4, 5, YELLOW)
-        lcd.vline(cx, cy + 8, 5, ORANGE)
-        if selected:
-            lcd.ellipse(cx, cy + 1, 13, 11, YELLOW, False)
+    def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
+        head = BLACK if monochrome and selected else (WHITE if monochrome else ORANGE)
+        body = BLACK if monochrome and selected else (WHITE if monochrome else CYAN)
+        limb = BLACK if monochrome and selected else (WHITE if monochrome else YELLOW)
+        lcd.ellipse(cx, cy - 3, 4, 4, head, True)
+        lcd.rect(cx - 4, cy + 1, 8, 7, body)
+        lcd.hline(cx - 8, cy + 4, 5, limb)
+        lcd.hline(cx + 4, cy + 4, 5, limb)
+        lcd.vline(cx, cy + 8, 5, head)
 
     def on_open(self, runtime):
         self.reset_game()
@@ -287,10 +288,12 @@ class RageApp:
             lcd.text(text, x, 32, YELLOW)
 
         if self.state == "playing":
-            footer = "B punch CTRL spin"
+            footer = "Bottom punch"
         else:
-            footer = "A restart"
+            footer = "Top restart"
         draw_footer(lcd, footer, GRAY)
+        if self.state == "playing":
+            lcd.text("CTRL spin", 80, 71, GRAY)
 
     def step(self, runtime):
         buttons = runtime.buttons

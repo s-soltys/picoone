@@ -29,7 +29,14 @@ class GalaxyApp:
         self.splash_until = 0
         self.splash_phase = 0
 
-    def draw_icon(self, lcd, cx, cy, selected):
+    def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
+        if monochrome:
+            ink = BLACK if selected else WHITE
+            lcd.ellipse(cx, cy, 10, 6, ink, False)
+            lcd.ellipse(cx, cy, 2, 2, ink, True)
+            lcd.pixel(cx - 7, cy, ink)
+            lcd.pixel(cx + 8, cy - 1, ink)
+            return
         lcd.ellipse(cx, cy, 10, 6, CYAN, False)
         lcd.ellipse(cx, cy, 2, 2, YELLOW, True)
         lcd.pixel(cx - 7, cy, WHITE)
@@ -70,7 +77,7 @@ class GalaxyApp:
         lcd.text("GALAXY", 40, 10, CYAN)
         lcd.text("EXPLORER", 32, 22, WHITE)
         lcd.text("Charting stars", 28, 54, GRAY)
-        lcd.text("B skip", 56, 66, YELLOW)
+        lcd.text("Bottom skip", 32, 66, YELLOW)
 
     def step(self, runtime):
         buttons = runtime.buttons

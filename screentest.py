@@ -8,6 +8,9 @@ GREEN = 0xE007
 BLUE = 0x1F00
 WHITE = 0xFFFF
 BLACK = 0x0000
+DKRED = 0x0090
+PINK = 0x1FFC
+DKGRN = 0x4004
 class LCD_0inch96(framebuf.FrameBuffer):
     def __init__(self):
     
@@ -182,27 +185,53 @@ class LCD_0inch96(framebuf.FrameBuffer):
         self.cs(1)        
             
     
-if __name__=='__main__':
-
+def run():
     lcd = LCD_0inch96()   
     lcd.fill(BLACK)   
-    lcd.text("Hello pico!",35,15,GREEN)
-    lcd.text("This is:",50,35,GREEN)    
-    lcd.text("Pico-LCD-0.96",30,55,GREEN)
+    lcd.text("Hello Kim!",15,15,RED)
+    lcd.text("Can't wait",15,35,WHITE)    
+    lcd.text("to see you :*",15,55,WHITE)
     lcd.display()
     
-    lcd.hline(10,10,140,BLUE)
-    lcd.hline(10,70,140,BLUE)
-    lcd.vline(10,10,60,BLUE)
-    lcd.vline(150,10,60,BLUE)
-    
+    # rose top right
+    cx = 140
+    # petals (overlapping ellipses)
+    lcd.ellipse(cx, 18, 7, 9, RED, True)
+    lcd.ellipse(cx-6, 20, 6, 7, RED, True)
+    lcd.ellipse(cx+6, 20, 6, 7, RED, True)
+    lcd.ellipse(cx-3, 14, 5, 6, PINK, True)
+    lcd.ellipse(cx+3, 14, 5, 6, PINK, True)
+    lcd.ellipse(cx, 20, 4, 5, DKRED, True)
+    # spiral centre
+    lcd.ellipse(cx, 17, 2, 3, DKRED, True)
+    # stem
+    lcd.vline(cx, 28, 22, DKGRN)
+    lcd.vline(cx-1, 28, 22, DKGRN)
+    # leaves
+    lcd.ellipse(cx+5, 40, 5, 3, DKGRN, True)
+    lcd.ellipse(cx-6, 46, 5, 3, DKGRN, True)
+
     lcd.hline(0,0,160,BLUE)
     lcd.hline(0,79,160,BLUE)
     lcd.vline(0,0,80,BLUE)
     lcd.vline(159,0,80,BLUE) 
     
     lcd.display()
-    time.sleep(3)     
+
+    KEY_UP = Pin(2,Pin.IN,Pin.PULL_UP)
+    KEY_DOWN = Pin(18,Pin.IN,Pin.PULL_UP)
+    KEY_LEFT= Pin(16,Pin.IN,Pin.PULL_UP)
+    KEY_RIGHT= Pin(20,Pin.IN,Pin.PULL_UP)
+    KEY_CTRL=Pin(3,Pin.IN,Pin.PULL_UP)
+    KEY_A=Pin(15,Pin.IN,Pin.PULL_UP)
+    KEY_B=Pin(17,Pin.IN,Pin.PULL_UP)
+
+    # wait for any button press
+    while KEY_UP.value() and KEY_DOWN.value() and KEY_LEFT.value() and KEY_RIGHT.value() and KEY_CTRL.value() and KEY_A.value() and KEY_B.value():
+        time.sleep(0.05)
+    # debounce
+    time.sleep(0.2)
+
     #game GUI
 ###    
     lcd.fill(WHITE)    
@@ -216,20 +245,12 @@ if __name__=='__main__':
         lcd.vline(i,0,80,BLACK)
         i=i+10 
     lcd.display()
-###    
+### 
     
     x=80
     y=40
     color=RED
     colorflag=0
-    
-    KEY_UP = Pin(2,Pin.IN,Pin.PULL_UP)
-    KEY_DOWN = Pin(18,Pin.IN,Pin.PULL_UP)
-    KEY_LEFT= Pin(16,Pin.IN,Pin.PULL_UP)
-    KEY_RIGHT= Pin(20,Pin.IN,Pin.PULL_UP)
-    KEY_CTRL=Pin(3,Pin.IN,Pin.PULL_UP)
-    KEY_A=Pin(15,Pin.IN,Pin.PULL_UP)
-    KEY_B=Pin(17,Pin.IN,Pin.PULL_UP) 
         
     while(1):
         key_flag=1
@@ -297,6 +318,6 @@ if __name__=='__main__':
         lcd.display()   
     
     time.sleep(1)
-    
 
-   
+if __name__=='__main__':
+    run()

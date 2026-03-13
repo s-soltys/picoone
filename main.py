@@ -4,5 +4,5 @@ from utime import sleep
 pin = Pin("LED", Pin.OUT)
 pin.on()
 
-import screentest
-screentest.run()
+import galaxy
+galaxy.run()

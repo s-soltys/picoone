@@ -3,7 +3,9 @@ import time
 import math
 import random
 from lcd import (LCD_0inch96, RED, GREEN, BLUE, WHITE, BLACK,
-                 YELLOW, CYAN, GRAY, ORANGE, PINK, DKRED)
+                 YELLOW, CYAN, GRAY, ORANGE, PINK, DKRED,
+                 PURPLE, TEAL, RUST, CRIMSON, BROWN, GOLD, SLATE,
+                 INDIGO, MARINE, AMBER, OLIVE, MAROON, COPPER, SAND)
 
 # --- States ---
 STATE_GALAXYSEL = 0
@@ -85,7 +87,7 @@ def gen_planet_name(seed):
 # Galaxy naming & shape types
 # shape: 0=spiral, 1=barred, 2=elliptical, 3=dwarf, 4=ring, 5=irregular-h, 6=irregular-v
 _GTYPE = ["Spiral","Barred","Elliptical","Dwarf","Ring","Irregular","Irregular"]
-_GCOLORS = [CYAN, YELLOW, ORANGE, WHITE, PINK, GREEN, CYAN]
+_GCOLORS = [MARINE, GOLD, AMBER, SLATE, PURPLE, TEAL, COPPER]
 
 def gen_galaxy_info(seed):
     random.seed(seed)
@@ -175,7 +177,8 @@ def gen_galaxy(seed, shape=0):
     return systems
 
 # --- Planet generation for a solar system ---
-_PLANET_COLORS = [RED, GREEN, BLUE, CYAN, ORANGE, PINK, WHITE, YELLOW]
+_PLANET_COLORS = [RED, CRIMSON, TEAL, BLUE, RUST, PURPLE, BROWN, GOLD,
+                  ORANGE, SLATE, MAROON, DKRED, OLIVE, INDIGO, COPPER, AMBER]
 
 _ATMO = ["None","Thin","Dense","Toxic","H2/He","N2/O2","CO2","CH4"]
 _PTYPE = ["Rocky","Gas","Ice","Lava","Ocean","Desert"]
@@ -353,7 +356,7 @@ def draw_system(lcd, system, planets, sel_planet):
         pname = p[4]
         if len(pname) > 9:
             pname = pname[:9]
-        lcd.text(pname, rx, 14, GREEN)
+        lcd.text(pname, rx, 14, TEAL)
 
         lcd.text(p[11], rx, 26, WHITE)  # type
 
@@ -389,9 +392,9 @@ _RTYPE = ["Mountain","Canyon","Crater","Volcano","Ocean",
 _RDET = ["Ancient","Vast","Deep","Frozen","Active",
          "Dense","Barren","Lush","Glowing","Silent",
          "Crystal","Iron","Sulfur","Mossy","Dusty"]
-_RCOLORS = [GRAY, DKRED, ORANGE, RED, BLUE,
-            GREEN, YELLOW, CYAN, WHITE, PINK,
-            CYAN, GREEN, YELLOW, ORANGE, BLUE]
+_RCOLORS = [GRAY, DKRED, ORANGE, RED, MARINE,
+            OLIVE, SAND, TEAL, SLATE, PURPLE,
+            INDIGO, BROWN, AMBER, COPPER, BLUE]
 
 def gen_regions(planet):
     pseed = hash(planet[4]) & 0xFFFF
@@ -464,7 +467,7 @@ def draw_planet(lcd, planet, regions, sel_region):
             if bw > 0:
                 ty = random.randint(-bw, bw)
                 sz = random.randint(2, 4)
-                lcd.ellipse(pcx + tx, pcy + ty, sz, sz - 1, GREEN, True)
+                lcd.ellipse(pcx + tx, pcy + ty, sz, sz - 1, OLIVE, True)
         # scattered water highlights
         for _ in range(30):
             tx = random.randint(-pr + 3, pr - 3)
@@ -589,7 +592,7 @@ def draw_planet(lcd, planet, regions, sel_region):
     pname = planet[4]
     if len(pname) > 9:
         pname = pname[:9]
-    lcd.text(pname, rx_t, 1, GREEN)
+    lcd.text(pname, rx_t, 1, TEAL)
 
     # planet type
     lcd.text(planet[11], rx_t, 12, GRAY)
@@ -621,7 +624,7 @@ def draw_planet(lcd, planet, regions, sel_region):
         lcd.text("Rad:" + str(rg[7]) + "%", rx_t, ny + 11, ORANGE)
 
         # bio signal
-        lcd.text("Bio:" + str(rg[8]) + "%", rx_t, ny + 22, GREEN)
+        lcd.text("Bio:" + str(rg[8]) + "%", rx_t, ny + 22, TEAL)
 
 # --- Draw a mini galaxy shape at given center ---
 def _draw_mini_galaxy(lcd, cx, cy, shape, color, sel):

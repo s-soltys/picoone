@@ -196,7 +196,7 @@ class WiFiStatusApp:
             lcd.text("Pick a network", 4, 22, WHITE)
         else:
             lcd.text("Radio off", 4, 12, ORANGE)
-            lcd.text("B wakes it", 4, 22, WHITE)
+            lcd.text("A scans", 4, 22, WHITE)
 
         if chosen:
             saved = self._saved_password(chosen)
@@ -209,12 +209,12 @@ class WiFiStatusApp:
 
         if self.error:
             lcd.text(fit_text(self.error, 18), 4, 34, ORANGE)
-            draw_footer(lcd, "B scan")
+            draw_footer(lcd, "A scan")
             return
 
         if not self.results:
             lcd.text("No SSIDs found", 4, 34, GRAY)
-            draw_footer(lcd, "B scan")
+            draw_footer(lcd, "A scan")
             return
 
         y = 34
@@ -237,8 +237,8 @@ class WiFiStatusApp:
             lcd.text(rssi, 126, y, BLACK if selected else CYAN)
             y += 10
 
-        draw_footer(lcd, "B join", GRAY)
-        lcd.text("A next", 86, 71, GRAY)
+        draw_footer(lcd, "A scan", GRAY)
+        lcd.text("B join", 86, 71, GRAY)
 
     def _draw_keyboard(self, lcd):
         page_name = KEYBOARD_PAGES[self.keyboard_page][0]
@@ -297,14 +297,18 @@ class WiFiStatusApp:
             lcd.text(fit_text(ip, 18), 4, 30, WHITE)
             if self.connect_remember and self.connect_password:
                 lcd.text("Password saved", 4, 44, GRAY)
-            draw_footer(lcd, "A or Bottom", GREEN)
+            draw_footer(lcd, "A scan", GREEN)
+            lcd.text("B back", 86, 71, GREEN)
         else:
             error = self.result["error"] if self.result else "connection failed"
             lcd.text(fit_text(error, 18), 4, 30, ORANGE)
             if self._secure_network(self.current_network):
-                lcd.text("B edits pass", 4, 44, GRAY)
-            draw_footer(lcd, "B retry", RED)
-            lcd.text("A back", 88, 71, RED)
+                lcd.text("B edit pass", 4, 44, GRAY)
+                draw_footer(lcd, "A back", RED)
+                lcd.text("B edit", 88, 71, RED)
+            else:
+                draw_footer(lcd, "A back", RED)
+                lcd.text("B retry", 80, 71, RED)
 
     def _step_list(self, runtime):
         buttons = runtime.buttons
@@ -313,17 +317,11 @@ class WiFiStatusApp:
         if buttons.repeat("DOWN", 180, 100):
             self._move_selection(1)
         if buttons.pressed("A"):
-            self._move_selection(1)
-        if buttons.pressed("B"):
-            chosen = self._selected_item()
-            if chosen and self._secure_network(chosen) and not chosen["hidden"]:
-                self._open_keyboard(chosen, self._saved_password(chosen))
-            else:
-                self.refresh(runtime)
+            self.refresh(runtime)
         if buttons.pressed("B"):
             chosen = self._selected_item()
             if chosen is None:
-                self.refresh(runtime)
+                pass
             elif chosen["hidden"]:
                 self.current_network = chosen
                 self.result = {"ok": False, "error": "hidden SSID", "ifconfig": None}
@@ -349,7 +347,7 @@ class WiFiStatusApp:
             self.keyboard_index = (self.keyboard_index + 1) % len(tokens)
         if buttons.repeat("UP", 180, 100):
             self._set_keyboard_page(self.keyboard_page - 1)
-        if buttons.repeat("DOWN", 180, 100) or buttons.pressed("B"):
+        if buttons.repeat("DOWN", 180, 100):
             self._set_keyboard_page(self.keyboard_page + 1)
         if buttons.pressed("B"):
             self._handle_keyboard_token()
@@ -373,17 +371,19 @@ class WiFiStatusApp:
         ok = self.result and self.result["ok"]
 
         if ok:
-            if buttons.pressed("A") or buttons.pressed("B"):
-                self.state = "list"
-                self.refresh(runtime)
-        else:
             if buttons.pressed("A"):
                 self.state = "list"
                 self.refresh(runtime)
             if buttons.pressed("B"):
-                self._start_connect(self.current_network, self.connect_password, self.connect_remember)
+                self.state = "list"
+        else:
+            if buttons.pressed("A"):
+                self.state = "list"
+                self.refresh(runtime)
             if buttons.pressed("B") and self._secure_network(self.current_network):
                 self._open_keyboard(self.current_network, self.connect_password)
+            elif buttons.pressed("B"):
+                self._start_connect(self.current_network, self.connect_password, self.connect_remember)
         self._draw_result(runtime.lcd)
 
     def step(self, runtime):

@@ -61,7 +61,6 @@ class TetrisApp:
         self.drop_tick = 0
         self.lines = 0
         self.state = "playing"
-        self.paused = False
 
     def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
         ink = BLACK if monochrome and selected else (WHITE if monochrome else PURPLE)
@@ -79,7 +78,6 @@ class TetrisApp:
             self.board.append([0] * BOARD_W)
         self.lines = 0
         self.state = "playing"
-        self.paused = False
         self.drop_tick = 0
         self.next_index = random.randint(0, len(SHAPES) - 1)
         self._spawn_piece()
@@ -111,7 +109,7 @@ class TetrisApp:
         return True
 
     def _try_move(self, dx, dy, new_rot=None):
-        if self.state != "playing" or self.current is None or self.paused:
+        if self.state != "playing" or self.current is None:
             return False
         rot = self.current["rot"] if new_rot is None else new_rot
         nx = self.current["x"] + dx
@@ -124,7 +122,7 @@ class TetrisApp:
         return False
 
     def _rotate(self):
-        if self.state != "playing" or self.paused:
+        if self.state != "playing":
             return
         new_rot = (self.current["rot"] + 1) % len(SHAPES[self.current["shape"]])
         if self._try_move(0, 0, new_rot):
@@ -161,7 +159,7 @@ class TetrisApp:
         self._spawn_piece()
 
     def _hard_drop(self):
-        if self.state != "playing" or self.paused:
+        if self.state != "playing":
             return
         while self._try_move(0, 1):
             pass
@@ -197,13 +195,8 @@ class TetrisApp:
             py = 30 + (oy * 5)
             lcd.fill_rect(px, py, 4, 4, COLORS[self.next_index])
 
-        if self.paused:
-            lcd.text("PAUSED", 92, 48, CYAN)
-        elif self.state == "lost":
+        if self.state == "lost":
             lcd.text("LOCKED", 92, 48, RED)
-        else:
-            lcd.text("B", 94, 48, GRAY)
-            lcd.text("pause", 90, 58, GRAY)
 
         if self.state == "playing":
             draw_footer(lcd, "A rotate", GRAY)
@@ -221,10 +214,7 @@ class TetrisApp:
             else:
                 self.reset_game()
 
-        if buttons.pressed("B") and self.state == "playing":
-            self.paused = not self.paused
-
-        if self.state == "playing" and not self.paused:
+        if self.state == "playing":
             if buttons.repeat("LEFT", 200, 100):
                 self._try_move(-1, 0)
             if buttons.repeat("RIGHT", 200, 100):
@@ -240,8 +230,6 @@ class TetrisApp:
                 self.drop_tick = 0
                 if not self._try_move(0, 1):
                     self._lock_piece()
-        elif self.state != "playing" and buttons.pressed("B"):
-            self.reset_game()
 
         self.draw_scene(lcd)
         return None

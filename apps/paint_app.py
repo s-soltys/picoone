@@ -5,7 +5,7 @@ from core.ui import draw_header, draw_footer
 CANVAS_W = 14
 CANVAS_H = 6
 CELL = 10
-PALETTE = [BLACK, RED, GREEN, BLUE, CYAN, YELLOW, ORANGE, PURPLE]
+PALETTE = [WHITE, BLACK, RED, GREEN, BLUE, CYAN, YELLOW, ORANGE, PURPLE]
 
 
 class PaintApp:
@@ -58,8 +58,8 @@ class PaintApp:
             lcd.fill_rect(palette_x, py, 16, 6, PALETTE[index])
             lcd.rect(palette_x, py, 16, 6, BLACK if index == self.color_index else GRAY)
 
-        draw_footer(lcd, "B paint", WHITE)
-        lcd.text("A erase", 78, 71, WHITE)
+        draw_footer(lcd, "A color", WHITE)
+        lcd.text("B paint", 78, 71, WHITE)
 
     def step(self, runtime):
         buttons = runtime.buttons
@@ -73,13 +73,11 @@ class PaintApp:
             self.cursor_y = max(0, self.cursor_y - 1)
         if buttons.repeat("DOWN", 140, 70):
             self.cursor_y = min(CANVAS_H - 1, self.cursor_y + 1)
-        if buttons.pressed("B"):
+        if buttons.pressed("A"):
             self.color_index = (self.color_index + 1) % len(PALETTE)
 
         if buttons.down("B"):
             self.canvas[self.cursor_y][self.cursor_x] = PALETTE[self.color_index]
-        if buttons.down("A") and not buttons.down("B"):
-            self.canvas[self.cursor_y][self.cursor_x] = WHITE
 
         self.draw_scene(lcd)
         return None

@@ -172,7 +172,7 @@ class RageApp:
         if buttons.pressed("B") and self.attack_timer == 0:
             self.attack_timer = 7
             self.do_attack(False)
-        if buttons.pressed("B") and self.special_cooldown == 0:
+        if buttons.pressed("A") and self.special_cooldown == 0:
             self.special_timer = 10
             self.special_cooldown = 45
             self.do_attack(True)
@@ -293,7 +293,7 @@ class RageApp:
             footer = "A restart"
         draw_footer(lcd, footer, GRAY)
         if self.state == "playing":
-            lcd.text("B spin", 80, 71, GRAY)
+            lcd.text("A spin", 88, 71, GRAY)
 
     def step(self, runtime):
         buttons = runtime.buttons
@@ -301,7 +301,7 @@ class RageApp:
 
         if self.state == "playing":
             self.update_game(buttons)
-        elif buttons.pressed("A") or buttons.pressed("B"):
+        elif buttons.pressed("A"):
             self.reset_game()
 
         self.draw_scene(lcd)

@@ -179,14 +179,14 @@ class MinesApp:
             self.cursor_y = max(0, self.cursor_y - 1)
         if buttons.repeat("DOWN"):
             self.cursor_y = min(GRID_H - 1, self.cursor_y + 1)
-        if buttons.pressed("A"):
-            self.reset_board()
 
         if self.state == "playing":
-            if buttons.pressed("B"):
+            if buttons.pressed("A"):
                 self.toggle_flag(self.cursor_x, self.cursor_y)
             if buttons.pressed("B"):
                 self.reveal_cell(self.cursor_x, self.cursor_y)
+        elif buttons.pressed("A"):
+            self.reset_board()
 
         lcd.fill(BLACK)
         mines_left = MINE_COUNT - self.count_flags()
@@ -194,10 +194,10 @@ class MinesApp:
         self.draw_grid(lcd)
 
         if self.state == "won":
-            draw_footer(lcd, "Cleared! Top new", CYAN)
+            draw_footer(lcd, "Cleared! A new", CYAN)
         elif self.state == "lost":
-            draw_footer(lcd, "Boom. Top retry", RED)
+            draw_footer(lcd, "Boom. A retry", RED)
         else:
             draw_footer(lcd, "B dig", GRAY)
-            lcd.text("B flag", 80, 71, GRAY)
+            lcd.text("A flag", 80, 71, GRAY)
         return None

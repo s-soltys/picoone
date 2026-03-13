@@ -77,7 +77,7 @@ class GalaxyApp:
         lcd.text("GALAXY", 40, 10, CYAN)
         lcd.text("EXPLORER", 32, 22, WHITE)
         lcd.text("Charting stars", 28, 54, GRAY)
-        lcd.text("B skip", 32, 66, YELLOW)
+        lcd.text("A/B skip", 20, 66, YELLOW)
 
     def step(self, runtime):
         buttons = runtime.buttons
@@ -86,7 +86,6 @@ class GalaxyApp:
         if self.show_splash:
             self._draw_splash(lcd)
             if (buttons.pressed("A") or buttons.pressed("B")
-                    or buttons.pressed("B")
                     or time.ticks_diff(time.ticks_ms(), self.splash_until) >= 0):
                 self.show_splash = False
             return None
@@ -100,7 +99,7 @@ class GalaxyApp:
                 self.uvx = max(0, self.uvx - self.scroll_speed)
             if buttons.down("RIGHT"):
                 self.uvx = min(galaxy.UNIV_W - 160, self.uvx + self.scroll_speed)
-            if buttons.pressed("B"):
+            if buttons.pressed("A"):
                 self.sel_gal = (self.sel_gal + 1) % len(self.galaxies)
                 entry = self.galaxies[self.sel_gal]
                 self.uvx = max(0, min(galaxy.UNIV_W - 160, entry[4] - 80))
@@ -128,11 +127,6 @@ class GalaxyApp:
                 self.vx = max(0, self.vx - self.scroll_speed)
             if buttons.down("RIGHT"):
                 self.vx = min(galaxy.WORLD_W - 160, self.vx + self.scroll_speed)
-            if buttons.pressed("B"):
-                self.sel_idx = (self.sel_idx + 1) % len(self.systems)
-                system = self.systems[self.sel_idx]
-                self.vx = max(0, min(galaxy.WORLD_W - 160, system[0] - 80))
-                self.vy = max(0, min(galaxy.WORLD_H - 80, system[1] - 40))
             if buttons.pressed("B"):
                 self.sel_idx = galaxy.find_nearest(self.systems, self.vx, self.vy)
                 if self.sel_idx >= 0:

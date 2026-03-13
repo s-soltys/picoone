@@ -2,6 +2,7 @@ from machine import Pin
 import time
 import math
 import random
+from core.controls import BUTTON_PINS
 from lcd import (LCD_0inch96, RED, GREEN, BLUE, WHITE, BLACK,
                  YELLOW, CYAN, GRAY, ORANGE, PINK, DKRED,
                  PURPLE, TEAL, RUST, CRIMSON, BROWN, GOLD, SLATE,
@@ -743,18 +744,16 @@ def run():
     lcd.display()
 
     # inputs
-    KEY_UP = Pin(2, Pin.IN, Pin.PULL_UP)
-    KEY_DOWN = Pin(18, Pin.IN, Pin.PULL_UP)
-    KEY_LEFT = Pin(16, Pin.IN, Pin.PULL_UP)
-    KEY_RIGHT = Pin(20, Pin.IN, Pin.PULL_UP)
-    KEY_CTRL = Pin(3, Pin.IN, Pin.PULL_UP)
-    KEY_A = Pin(15, Pin.IN, Pin.PULL_UP)
-    KEY_B = Pin(17, Pin.IN, Pin.PULL_UP)
+    KEY_UP = Pin(BUTTON_PINS["UP"], Pin.IN, Pin.PULL_UP)
+    KEY_DOWN = Pin(BUTTON_PINS["DOWN"], Pin.IN, Pin.PULL_UP)
+    KEY_LEFT = Pin(BUTTON_PINS["LEFT"], Pin.IN, Pin.PULL_UP)
+    KEY_RIGHT = Pin(BUTTON_PINS["RIGHT"], Pin.IN, Pin.PULL_UP)
+    KEY_A = Pin(BUTTON_PINS["A"], Pin.IN, Pin.PULL_UP)
+    KEY_B = Pin(BUTTON_PINS["B"], Pin.IN, Pin.PULL_UP)
 
     # wait for any key
     while (KEY_UP.value() and KEY_DOWN.value() and KEY_LEFT.value()
-           and KEY_RIGHT.value() and KEY_CTRL.value()
-           and KEY_A.value() and KEY_B.value()):
+           and KEY_RIGHT.value() and KEY_A.value() and KEY_B.value()):
         time.sleep(0.05)
     time.sleep(0.2)
 
@@ -789,8 +788,8 @@ def run():
             if KEY_RIGHT.value() == 0:
                 uvx = min(UNIV_W - 160, uvx + scroll_speed)
 
-            # CTRL: jump to next galaxy
-            if KEY_CTRL.value() == 0:
+            # A: jump to next galaxy
+            if KEY_A.value() == 0:
                 sel_gal = (sel_gal + 1) % len(galaxies)
                 g = galaxies[sel_gal]
                 uvx = max(0, min(UNIV_W - 160, g[4] - 80))
@@ -823,14 +822,6 @@ def run():
                 vx = max(0, vx - scroll_speed)
             if KEY_RIGHT.value() == 0:
                 vx = min(WORLD_W - 160, vx + scroll_speed)
-
-            # CTRL: jump to next system
-            if KEY_CTRL.value() == 0:
-                sel_idx = (sel_idx + 1) % len(systems)
-                s = systems[sel_idx]
-                vx = max(0, min(WORLD_W - 160, s[0] - 80))
-                vy = max(0, min(WORLD_H - 80, s[1] - 40))
-                time.sleep(0.2)
 
             # B: zoom into selected system
             if KEY_B.value() == 0:

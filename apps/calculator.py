@@ -1,5 +1,5 @@
 from lcd import BLACK, WHITE, CYAN, YELLOW, GRAY, GREEN, ORANGE, SLATE
-from core.ui import draw_header, fit_text
+from core.ui import draw_header, draw_footer, fit_text
 
 
 OPS = "+-*/"
@@ -142,8 +142,6 @@ class CalculatorApp:
         if buttons.pressed("A"):
             self.backspace()
         if buttons.pressed("B"):
-            self.clear()
-        if buttons.pressed("B"):
             self.press_key(KEYPAD[self.cursor_y][self.cursor_x])
 
         lcd.fill(BLACK)
@@ -167,6 +165,6 @@ class CalculatorApp:
                 lcd.rect(x, y, 38, 10, YELLOW if selected else GRAY)
                 lcd.text(key, x + 15, y + 1, ORANGE if selected else GREEN)
 
-        lcd.text("A del", 2, 70, GRAY)
-        lcd.text("B clr", 56, 70, GRAY)
+        draw_footer(lcd, "A del", GRAY)
+        lcd.text("B pick", 80, 71, GRAY)
         return None

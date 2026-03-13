@@ -1,17 +1,7 @@
 from machine import Pin
 import time
 
-
-BUTTON_PINS = {
-    "UP": 2,
-    "DOWN": 18,
-    "LEFT": 16,
-    "RIGHT": 20,
-    "B": 3,
-    # The physical top action button is A, the bottom action button is B.
-    "A": 15,
-    "B": 17,
-}
+from core.controls import BUTTON_ORDER, BUTTON_PINS
 
 
 class ButtonManager:
@@ -28,7 +18,7 @@ class ButtonManager:
         self._now_ms = time.ticks_ms()
         self._home_triggered = False
         self._home_latched = False
-        for name in BUTTON_PINS:
+        for name in BUTTON_ORDER:
             self._pins[name] = Pin(BUTTON_PINS[name], Pin.IN, Pin.PULL_UP)
             self._current[name] = False
             self._events[name] = False

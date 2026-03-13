@@ -27,31 +27,31 @@ Included apps:
 
 Shared controls:
 - D-pad: move selection / scroll / pan
-- `Top (A)`: top action button
-- `Bottom (B)`: bottom action button, open app or activate highlighted item
-- `CTRL`: app-specific secondary action
-- `Top + Bottom`: global home shortcut, returns to the launcher from any app
+- `A`: secondary action, back, cycle, or restart depending on the app
+- `B`: primary action, open, select, or confirm depending on the app
+- `A + B`: global home shortcut, returns to the launcher from any app
 
 App-specific notes:
-- `Galaxy`: opens with a splash screen, `CTRL` jumps to next galaxy/system, `Top` backs out one level
-- `Wi-Fi`: `Bottom` joins, `Top` cycles networks, `CTRL` rescans or edits a password, and secure joins use an on-screen keyboard that works with just `Top` and `Bottom`
-- `Calculator`: `Top` deletes one character, `CTRL` clears all
-- `Files`: `Top` goes up one level, `Bottom` opens folder or file preview
-- `Mines`: `Bottom` reveals a tile, `CTRL` toggles flag, `Top` restarts
-- `Rage`: D-pad moves, `Bottom` punches, `CTRL` uses a spin attack, `Top` restarts after defeat/clear
-- `Invaders`: D-pad moves, `Bottom` fires, `Top` restarts
-- `Pac-Man`: D-pad steers, `Bottom` pauses, `Top` restarts
-- `Arkanoid`: D-pad moves, `Bottom` launches, `Top` restarts
-- `Tetris`: D-pad moves, `Top` rotates, `Bottom` hard-drops
-- `Paint`: D-pad moves, `Bottom` paints, `Top` erases, `CTRL` changes color
+- `Galaxy`: `A` jumps to the next galaxy on the overview, `B` enters the current target, and `A` backs out of deeper views
+- `Wi-Fi`: `A` scans in list/result views and advances the keyboard carousel, `B` joins or picks the highlighted item
+- `Calculator`: `A` deletes one character, `B` presses the highlighted key
+- `Files`: `A` goes back, `B` opens a folder or file preview
+- `Mines`: `A` toggles a flag while playing and restarts after a win/loss, `B` reveals a tile
+- `Rage`: D-pad moves, `B` punches, `A` uses the spin attack, and `A` restarts after defeat/clear
+- `Invaders`: D-pad moves, `B` fires, `A` restarts
+- `Pac-Man`: D-pad steers, `B` pauses/resumes, `A` restarts
+- `Arkanoid`: D-pad moves, `B` launches, `A` resets
+- `Tetris`: D-pad moves, `A` rotates, `B` hard-drops
+- `Paint`: D-pad moves, `A` cycles colors, `B` paints, and choosing white acts as erase
 
 ## Project Layout
 
 - [main.py](/Users/szymon/picotest/picoone/main.py): launcher entrypoint
 - [lcd.py](/Users/szymon/picotest/picoone/lcd.py): LCD driver
 - [galaxy.py](/Users/szymon/picotest/picoone/galaxy.py): galaxy generation and rendering engine
+- [core/controls.py](/Users/szymon/picotest/picoone/core/controls.py): canonical pin map and shared control labels
 - [core/launcher.py](/Users/szymon/picotest/picoone/core/launcher.py): shared runtime and home screen
-- [core/buttons.py](/Users/szymon/picotest/picoone/core/buttons.py): GPIO input handling and `Top + Bottom` home-chord detection
+- [core/buttons.py](/Users/szymon/picotest/picoone/core/buttons.py): GPIO input handling and `A + B` home-chord detection
 - [core/wifi.py](/Users/szymon/picotest/picoone/core/wifi.py): Pico W network helpers
 - [core/ui.py](/Users/szymon/picotest/picoone/core/ui.py): shared drawing helpers
 - [apps/](/Users/szymon/picotest/picoone/apps): launcher apps
@@ -66,7 +66,7 @@ Legacy helper scripts are still present at repo root:
 1. Create a new app class under `apps/`.
 2. Give it `app_id`, `title`, `accent`, `draw_icon()`, `on_open()`, and `step()` methods.
 3. Register it in [apps/__init__.py](/Users/szymon/picotest/picoone/apps/__init__.py).
-4. Keep navigation on the shared button model and do not bypass the global `Top + Bottom` home gesture.
+4. Keep navigation on the shared button model and do not bypass the global `A + B` home gesture.
 
 `step(runtime)` is called once per frame. Use:
 - `runtime.lcd` for drawing
@@ -86,11 +86,10 @@ It can:
 - reuse credentials from `secrets.py` as a fallback for an existing known SSID
 
 Keyboard flow:
-- `Top` cycles through keys
-- `Bottom` picks the highlighted key
-- `123`, `ABC`, `abc`, and `!?` keys switch keyboard pages, so the flow works with only `Top` and `Bottom`
-- `CTRL` is an optional shortcut for changing keyboard page
-- D-pad is optional for faster navigation, but the flow is usable with only `Top` and `Bottom`
+- `A` cycles through keys
+- `B` picks the highlighted key
+- `123`, `ABC`, `abc`, and `!?` keys switch keyboard pages, so the flow works with only `A` and `B`
+- D-pad is optional for faster navigation and page changes, but the flow is usable with only `A` and `B`
 
 Current limits:
 - hidden SSIDs are not joinable from the UI yet

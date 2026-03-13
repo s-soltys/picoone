@@ -93,7 +93,7 @@ class FilesApp:
         lcd = runtime.lcd
 
         if self.preview:
-            if buttons.pressed("A") or buttons.pressed("B"):
+            if buttons.pressed("A"):
                 self.preview = None
         else:
             items = self.current_items()
@@ -129,7 +129,7 @@ class FilesApp:
             lcd.text("file", 4, 32, WHITE)
             lcd.text(item["size"], 4, 44, WHITE)
             lcd.text(fit_text(item["meta"], 18), 4, 58, GRAY)
-            draw_footer(lcd, "A or Bottom")
+            draw_footer(lcd, "A back")
             return None
 
         lcd.text(fit_text(self.current_path(), 18), 4, 12, TEAL)

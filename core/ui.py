@@ -1,13 +1,11 @@
 from lcd import BLACK, WHITE, GRAY, CYAN, YELLOW, DKGRN, TEAL, SLATE
+from core.controls import HOME_HINT
 
 
 SCREEN_W = 160
 SCREEN_H = 80
 HEADER_H = 10
 FOOTER_H = 10
-TOP_LABEL = "A"
-BOTTOM_LABEL = "B"
-HOME_HINT = "A+Bottom home"
 
 
 def fit_text(text, max_chars):

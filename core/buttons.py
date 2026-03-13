@@ -8,6 +8,7 @@ BUTTON_PINS = {
     "LEFT": 16,
     "RIGHT": 20,
     "CTRL": 3,
+    # The physical top action button is A, the bottom action button is B.
     "A": 15,
     "B": 17,
 }

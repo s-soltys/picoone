@@ -15,20 +15,25 @@ Included apps:
 - `Wi-Fi`: current radio status plus real Pico W SSID scanning
 - `Calculator`: four-function on-screen calculator
 - `Files`: fake read-only file explorer backed by a static in-memory tree
+- `Mines`: compact minesweeper
+- `Rage`: small side-scrolling beat-em-up inspired by Streets of Rage
 
 ## Controls
 
 Shared controls:
 - D-pad: move selection / scroll / pan
-- `B`: open app or activate highlighted item
+- `A`: top action button
+- `B`: bottom action button, open app or activate highlighted item
 - `CTRL`: app-specific secondary action
 - `A + B`: global home shortcut, returns to the launcher from any app
 
 App-specific notes:
-- `Galaxy`: `CTRL` jumps to next galaxy/system, `A` backs out one level
+- `Galaxy`: opens with a splash screen, `CTRL` jumps to next galaxy/system, top `A` backs out one level
 - `Wi-Fi`: `CTRL` rescans nearby SSIDs
-- `Calculator`: `A` deletes one character, `CTRL` clears all
-- `Files`: `A` goes up one level, `B` opens folder or file preview
+- `Calculator`: top `A` deletes one character, `CTRL` clears all
+- `Files`: top `A` goes up one level, bottom `B` opens folder or file preview
+- `Mines`: bottom `B` reveals a tile, `CTRL` toggles flag, top `A` restarts
+- `Rage`: D-pad moves, bottom `B` punches, `CTRL` uses a spin attack, top `A` restarts after defeat/clear
 
 ## Project Layout
 

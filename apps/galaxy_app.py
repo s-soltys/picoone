@@ -1,6 +1,7 @@
 import galaxy
+import time
 
-from lcd import CYAN, WHITE, YELLOW
+from lcd import CYAN, WHITE, YELLOW, BLACK, GRAY, GOLD
 
 
 class GalaxyApp:
@@ -24,6 +25,9 @@ class GalaxyApp:
         self.regions = None
         self.sel_region = 0
         self.scroll_speed = 4
+        self.show_splash = False
+        self.splash_until = 0
+        self.splash_phase = 0
 
     def draw_icon(self, lcd, cx, cy, selected):
         lcd.ellipse(cx, cy, 10, 6, CYAN, False)
@@ -34,6 +38,12 @@ class GalaxyApp:
             lcd.ellipse(cx, cy, 13, 9, YELLOW, False)
 
     def on_open(self, runtime):
+        self.show_splash = True
+        self.splash_phase = time.ticks_ms()
+        self.splash_until = time.ticks_add(self.splash_phase, 1100)
+        self._init_world()
+
+    def _init_world(self):
         self.galaxies = galaxy.gen_galaxy_list(8)
         self.sel_gal = 0
         self.state = galaxy.STATE_GALAXYSEL
@@ -50,9 +60,29 @@ class GalaxyApp:
         self.uvx = max(0, min(galaxy.UNIV_W - 160, g[4] - 80))
         self.uvy = max(0, min(galaxy.UNIV_H - 80, g[5] - 40))
 
+    def _draw_splash(self, lcd):
+        tick = time.ticks_ms()
+        lcd.fill(BLACK)
+        galaxy.draw_bg_stars(lcd, (tick // 7) % 400, (tick // 11) % 300)
+        galaxy._draw_mini_galaxy(lcd, 36, 38, 0, CYAN, False)
+        galaxy._draw_mini_galaxy(lcd, 82, 28, 1, GOLD, False)
+        galaxy._draw_mini_galaxy(lcd, 126, 42, 4, YELLOW, False)
+        lcd.text("GALAXY", 40, 10, CYAN)
+        lcd.text("EXPLORER", 32, 22, WHITE)
+        lcd.text("Charting stars", 28, 54, GRAY)
+        lcd.text("B skip", 56, 66, YELLOW)
+
     def step(self, runtime):
         buttons = runtime.buttons
         lcd = runtime.lcd
+
+        if self.show_splash:
+            self._draw_splash(lcd)
+            if (buttons.pressed("A") or buttons.pressed("B")
+                    or buttons.pressed("CTRL")
+                    or time.ticks_diff(time.ticks_ms(), self.splash_until) >= 0):
+                self.show_splash = False
+            return None
 
         if self.state == galaxy.STATE_GALAXYSEL:
             if buttons.down("UP"):

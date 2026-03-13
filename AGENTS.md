@@ -14,9 +14,11 @@ The runtime is intentionally small:
 
 - Keep `main.py` thin. Startup and frame-loop logic belongs in [core/launcher.py](/Users/szymon/picotest/picoone/core/launcher.py).
 - Keep GPIO button setup centralized in [core/buttons.py](/Users/szymon/picotest/picoone/core/buttons.py). Do not create raw `Pin` readers inside individual apps.
+- Preserve the physical naming convention: top action button = `A`, bottom action button = `B`.
 - Preserve the global `A + B` home shortcut. App code must not block or rebind it.
 - Reuse [core/ui.py](/Users/szymon/picotest/picoone/core/ui.py) helpers for headers, footers, and tile styling instead of inventing per-app chrome.
 - Keep memory use conservative. Prefer drawn icons and static in-memory data over large assets.
+- Favor small in-code game state and drawn sprites over external assets for launcher mini-games.
 
 ## App Contract
 

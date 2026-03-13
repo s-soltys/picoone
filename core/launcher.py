@@ -60,7 +60,8 @@ class Launcher:
         self.lcd.text("PICO", center_x("PICO"), 18, CYAN)
         self.lcd.text("LAUNCHER", center_x("LAUNCHER"), 32, WHITE)
         self.lcd.text("Pico 2 W", center_x("Pico 2 W"), 48, YELLOW)
-        self.lcd.text("A+B returns home", 16, 64, GRAY)
+        self.lcd.text("Top=A Bottom=B", 16, 56, GRAY)
+        self.lcd.text("A+B returns home", 16, 66, GRAY)
         self.lcd.display()
         time.sleep(0.7)
 

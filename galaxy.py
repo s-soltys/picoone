@@ -9,6 +9,7 @@ from lcd import (LCD_0inch96, RED, GREEN, BLUE, WHITE, BLACK,
 STATE_GALAXYSEL = 0
 STATE_GALAXY = 1
 STATE_SYSTEM = 2
+STATE_PLANET = 3
 
 # --- World sizes ---
 UNIV_W = 240
@@ -381,6 +382,247 @@ def draw_system(lcd, system, planets, sel_planet):
             atm = atm[:9]
         lcd.text(atm, rx, 72, GRAY)
 
+# --- Region generation for a planet surface ---
+_RTYPE = ["Mountain","Canyon","Crater","Volcano","Ocean",
+          "Forest","Desert","Tundra","City","Ruins",
+          "Ice Cap","Swamp","Plains","Rift","Lake"]
+_RDET = ["Ancient","Vast","Deep","Frozen","Active",
+         "Dense","Barren","Lush","Glowing","Silent",
+         "Crystal","Iron","Sulfur","Mossy","Dusty"]
+_RCOLORS = [GRAY, DKRED, ORANGE, RED, BLUE,
+            GREEN, YELLOW, CYAN, WHITE, PINK,
+            CYAN, GREEN, YELLOW, ORANGE, BLUE]
+
+def gen_regions(planet):
+    pseed = hash(planet[4]) & 0xFFFF
+    random.seed(pseed + 3000)
+    n = random.randint(2, 5)
+    regions = []
+    for i in range(n):
+        # place regions ON the planet surface (angle + distance from center as fraction of radius)
+        a = random.randint(0, 628) / 100.0
+        d_frac = random.randint(10, 85) / 100.0  # 0.1-0.85 of planet radius
+        ri = random.randint(0, len(_RTYPE) - 1)
+        rtype = _RTYPE[ri]
+        rcolor = _RCOLORS[ri]
+        det = _RDET[random.randint(0, len(_RDET) - 1)]
+        rname = det + " " + rtype
+        rsize = random.randint(2, 4)
+        elev = random.randint(-5000, 15000)
+        rad = random.randint(0, 100)
+        bio = random.randint(0, 100)
+        regions.append([a, d_frac, rsize, rcolor, rname, rtype, elev, rad, bio])
+    return regions
+
+# --- Draw planet surface view (split: left=planet, right=scanner) ---
+def draw_planet(lcd, planet, regions, sel_region):
+    lcd.fill(BLACK)
+
+    pcx = 40
+    pcy = 40
+    pcolor = planet[3]
+    pr = 26  # bigger planet
+
+    # atmosphere glow (outer halo)
+    atm = planet[10]
+    if atm != "None":
+        # faint atmosphere ring
+        lcd.ellipse(pcx, pcy, pr + 3, pr + 3, GRAY, False)
+        lcd.ellipse(pcx, pcy, pr + 2, pr + 2, pcolor, False)
+
+    # planet base (dark side first for shadow)
+    lcd.ellipse(pcx, pcy, pr, pr, BLACK, True)
+    # main body color
+    lcd.ellipse(pcx, pcy, pr, pr, pcolor, True)
+
+    # surface texture: deterministic surface features
+    pseed = hash(planet[4]) & 0xFFFF
+    random.seed(pseed + 7000)
+    ptype = planet[11]
+
+    # generate surface detail pixels within the planet disc
+    if ptype == "Gas":
+        # horizontal bands with varied colors
+        band_colors = [pcolor, GRAY, ORANGE, YELLOW]
+        for band in range(-pr + 2, pr, 3):
+            bw = int(math.sqrt(max(0, pr * pr - band * band)))
+            if bw > 2:
+                c = band_colors[(band // 3) % len(band_colors)]
+                lcd.hline(pcx - bw + 1, pcy + band, bw * 2 - 2, c)
+        # swirl spots
+        for _ in range(6):
+            tx = random.randint(-pr // 2, pr // 2)
+            bw = int(math.sqrt(max(0, (pr-3)*(pr-3) - tx*tx)))
+            if bw > 0:
+                ty = random.randint(-bw, bw)
+                lcd.ellipse(pcx + tx, pcy + ty, 2, 1, DKRED, True)
+    elif ptype == "Ocean":
+        # continent-like land patches
+        for _ in range(8):
+            tx = random.randint(-pr + 5, pr - 5)
+            bw = int(math.sqrt(max(0, (pr-3)*(pr-3) - tx*tx)))
+            if bw > 0:
+                ty = random.randint(-bw, bw)
+                sz = random.randint(2, 4)
+                lcd.ellipse(pcx + tx, pcy + ty, sz, sz - 1, GREEN, True)
+        # scattered water highlights
+        for _ in range(30):
+            tx = random.randint(-pr + 3, pr - 3)
+            bw = int(math.sqrt(max(0, (pr-2)*(pr-2) - tx*tx)))
+            ty = random.randint(-bw, bw)
+            c = CYAN if random.randint(0, 2) == 0 else BLUE
+            lcd.pixel(pcx + tx, pcy + ty, c)
+    elif ptype == "Ice":
+        # cracks and varied ice
+        for _ in range(35):
+            tx = random.randint(-pr + 3, pr - 3)
+            bw = int(math.sqrt(max(0, (pr-2)*(pr-2) - tx*tx)))
+            ty = random.randint(-bw, bw)
+            c = WHITE if random.randint(0, 2) else CYAN
+            lcd.pixel(pcx + tx, pcy + ty, c)
+        # crack lines
+        for _ in range(3):
+            cx0 = random.randint(-pr // 2, pr // 2)
+            cy0 = random.randint(-pr // 2, pr // 2)
+            for j in range(6):
+                nx = cx0 + random.randint(-1, 1)
+                ny = cy0 + random.randint(-1, 1)
+                if nx*nx + ny*ny < (pr-2)*(pr-2):
+                    lcd.pixel(pcx + nx, pcy + ny, BLUE)
+                    cx0, cy0 = nx, ny
+    elif ptype == "Lava":
+        # dark crust with lava veins
+        for _ in range(30):
+            tx = random.randint(-pr + 3, pr - 3)
+            bw = int(math.sqrt(max(0, (pr-2)*(pr-2) - tx*tx)))
+            if bw > 0:
+                ty = random.randint(-bw, bw)
+                c = DKRED if random.randint(0, 1) else GRAY
+                lcd.pixel(pcx + tx, pcy + ty, c)
+        # bright lava flows
+        for _ in range(4):
+            cx0 = random.randint(-pr // 2, pr // 2)
+            cy0 = random.randint(-pr // 2, pr // 2)
+            for j in range(8):
+                nx = cx0 + random.randint(-1, 1)
+                ny = cy0 + random.randint(-1, 1)
+                if nx*nx + ny*ny < (pr-2)*(pr-2):
+                    lcd.pixel(pcx + nx, pcy + ny, ORANGE)
+                    cx0, cy0 = nx, ny
+        for _ in range(8):
+            tx = random.randint(-pr + 4, pr - 4)
+            bw = int(math.sqrt(max(0, (pr-3)*(pr-3) - tx*tx)))
+            if bw > 0:
+                ty = random.randint(-bw, bw)
+                lcd.pixel(pcx + tx, pcy + ty, YELLOW)
+    elif ptype == "Desert":
+        # dunes and rocky outcrops
+        for _ in range(25):
+            tx = random.randint(-pr + 3, pr - 3)
+            bw = int(math.sqrt(max(0, (pr-2)*(pr-2) - tx*tx)))
+            if bw > 0:
+                ty = random.randint(-bw, bw)
+                c = YELLOW if random.randint(0, 2) else ORANGE
+                lcd.pixel(pcx + tx, pcy + ty, c)
+        # rocky patches
+        for _ in range(5):
+            tx = random.randint(-pr + 5, pr - 5)
+            bw = int(math.sqrt(max(0, (pr-4)*(pr-4) - tx*tx)))
+            if bw > 0:
+                ty = random.randint(-bw, bw)
+                lcd.ellipse(pcx + tx, pcy + ty, 2, 1, GRAY, True)
+    else:
+        # Rocky — craters and varied terrain
+        for _ in range(30):
+            tx = random.randint(-pr + 3, pr - 3)
+            bw = int(math.sqrt(max(0, (pr-2)*(pr-2) - tx*tx)))
+            if bw > 0:
+                ty = random.randint(-bw, bw)
+                c = GRAY if random.randint(0, 1) else DKRED
+                lcd.pixel(pcx + tx, pcy + ty, c)
+        # crater rings
+        for _ in range(3):
+            tx = random.randint(-pr // 2, pr // 2)
+            bw = int(math.sqrt(max(0, (pr-4)*(pr-4) - tx*tx)))
+            if bw > 0:
+                ty = random.randint(-bw, bw)
+                lcd.ellipse(pcx + tx, pcy + ty, 3, 2, GRAY, False)
+
+    # terminator (shadow on right side for 3D effect)
+    for sy in range(-pr, pr + 1):
+        bw = int(math.sqrt(max(0, pr * pr - sy * sy)))
+        shadow_start = pcx + bw // 2
+        shadow_end = pcx + bw
+        for sx in range(shadow_start, shadow_end + 1):
+            if 0 <= sx < 80 and 0 <= pcy + sy < 80:
+                lcd.pixel(sx, pcy + sy, BLACK)
+
+    # re-draw planet outline for clean edge
+    lcd.ellipse(pcx, pcy, pr, pr, pcolor, False)
+
+    # highlight (specular reflection top-left)
+    lcd.ellipse(pcx - 7, pcy - 7, 4, 3, WHITE, False)
+
+    # draw regions ON the planet surface
+    for i in range(len(regions)):
+        r = regions[i]
+        d = int(r[1] * pr)
+        rx = pcx + int(d * math.cos(r[0]))
+        ry = pcy + int(d * math.sin(r[0]))
+        # check if within planet disc
+        ddx = rx - pcx
+        ddy = ry - pcy
+        if ddx * ddx + ddy * ddy <= pr * pr:
+            rx = max(1, min(78, rx))
+            ry = max(1, min(78, ry))
+            lcd.ellipse(rx, ry, r[2], r[2], r[3], True)
+            if i == sel_region:
+                lcd.ellipse(rx, ry, r[2] + 2, r[2] + 2, WHITE, False)
+
+    # divider
+    lcd.vline(INFO_X - 1, 0, 80, GRAY)
+
+    # --- Right panel: scanner info ---
+    rx_t = INFO_X + 1
+
+    # planet name
+    pname = planet[4]
+    if len(pname) > 9:
+        pname = pname[:9]
+    lcd.text(pname, rx_t, 1, GREEN)
+
+    # planet type
+    lcd.text(planet[11], rx_t, 12, GRAY)
+
+    # selected region info
+    if 0 <= sel_region < len(regions):
+        rg = regions[sel_region]
+        # region name (may need 2 lines)
+        rn = rg[4]
+        if len(rn) > 9:
+            lcd.text(rn[:9], rx_t, 25, rg[3])
+            lcd.text(rn[9:18], rx_t, 35, rg[3])
+            ny = 46
+        else:
+            lcd.text(rn, rx_t, 25, rg[3])
+            ny = 36
+
+        # elevation
+        e = rg[6]
+        if e >= 0:
+            es = "+" + str(e) + "m"
+        else:
+            es = str(e) + "m"
+        if len(es) > 9:
+            es = es[:9]
+        lcd.text(es, rx_t, ny, CYAN)
+
+        # radiation
+        lcd.text("Rad:" + str(rg[7]) + "%", rx_t, ny + 11, ORANGE)
+
+        # bio signal
+        lcd.text("Bio:" + str(rg[8]) + "%", rx_t, ny + 22, GREEN)
+
 # --- Draw a mini galaxy shape at given center ---
 def _draw_mini_galaxy(lcd, cx, cy, shape, color, sel):
     random.seed(shape * 1000 + cx + cy)
@@ -528,6 +770,8 @@ def run():
     sel_idx = 0
     planets = None
     sel_planet = 0
+    regions = None
+    sel_region = 0
     scroll_speed = 4
 
     while True:
@@ -611,6 +855,13 @@ def run():
                 sel_planet = (sel_planet + 1) % len(planets)
                 time.sleep(0.15)
 
+            # B: zoom into planet
+            if KEY_B.value() == 0:
+                regions = gen_regions(planets[sel_planet])
+                sel_region = 0
+                state = STATE_PLANET
+                time.sleep(0.2)
+
             # A: back to galaxy
             if KEY_A.value() == 0:
                 state = STATE_GALAXY
@@ -623,6 +874,22 @@ def run():
                     p[5] -= 6.283
 
             draw_system(lcd, systems[sel_idx], planets, sel_planet)
+
+        elif state == STATE_PLANET:
+            # --- Planet surface controls ---
+            if KEY_LEFT.value() == 0:
+                sel_region = (sel_region - 1) % len(regions)
+                time.sleep(0.15)
+            if KEY_RIGHT.value() == 0:
+                sel_region = (sel_region + 1) % len(regions)
+                time.sleep(0.15)
+
+            # A: back to solar system
+            if KEY_A.value() == 0:
+                state = STATE_SYSTEM
+                time.sleep(0.2)
+
+            draw_planet(lcd, planets[sel_planet], regions, sel_region)
 
         lcd.display()
         time.sleep(0.03)

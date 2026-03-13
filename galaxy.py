@@ -210,7 +210,7 @@ def gen_planets(system):
 
 # --- Galaxy list generation (placed in 2D universe) ---
 def gen_galaxy_list(count=8):
-    random.seed(12345)
+    random.seed(time.ticks_ms())
     galaxies = []
     attempts = 0
     while len(galaxies) < count and attempts < 300:

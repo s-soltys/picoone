@@ -1,8 +1,4 @@
-from machine import Pin
-from utime import sleep
+from core.launcher import Launcher
 
-pin = Pin("LED", Pin.OUT)
-pin.on()
 
-import galaxy
-galaxy.run()
+Launcher().run()

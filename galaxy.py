@@ -16,71 +16,87 @@ WORLD_H = 320
 
 # --- Name generation ---
 # Star/system naming: catalog-style scientific designations
-_CAT = ["NGC","HD","GJ","HR","TYC","KIC","KOI","PSR","TOI","HIP"]
-_GRK = ["Alpha","Beta","Gamma","Delta","Theta","Sigma","Omega","Zeta"]
+_CAT = ["NGC","HD","GJ","HR","TYC","KIC","KOI","PSR","TOI","HIP",
+        "SAO","LHS","HAT","XO","WASP","2MASS","V838","UGC","IC","Mrk"]
+_GRK = ["Alpha","Beta","Gamma","Delta","Theta","Sigma","Omega","Zeta",
+        "Kappa","Lambda","Epsilon","Pi","Upsilon","Xi","Chi"]
 _CON = ["Cygni","Lyrae","Draconis","Centauri","Eridani","Pavonis",
-        "Aquilae","Tauri","Andromedae","Orionis","Pegasi","Arietis"]
+        "Aquilae","Tauri","Andromedae","Orionis","Pegasi","Arietis",
+        "Virginis","Scorpii","Leonis","Hydrae","Crucis","Velorum"]
 _PRE = ["Zan","Kry","Vel","Tor","Neb","Pha","Xen","Ori",
-        "Lyr","Dra","Cas","Eri","Pul","Sig","Ald","Rig"]
+        "Lyr","Dra","Cas","Eri","Pul","Sig","Ald","Rig",
+        "Ara","Cep","Vol","Cor","Thr","Hex","Syn","Nym"]
 _SUF = ["th","ra","nis","tus","ris","lon","tex","pia",
-        "mos","vus","nex","cor","das","kas"]
+        "mos","vus","nex","cor","das","kas","ion","eos",
+        "ium","ari","ux","oth","ael","yn"]
 
 def gen_name(seed):
     random.seed(seed)
-    style = random.randint(0, 4)
+    style = random.randint(0, 7)
     if style == 0:
-        # catalog number: "NGC 4738"
         return _CAT[random.randint(0, len(_CAT)-1)] + " " + str(random.randint(100, 9999))
     elif style == 1:
-        # greek + constellation: "Beta Lyrae"
         return _GRK[random.randint(0, len(_GRK)-1)] + " " + _CON[random.randint(0, len(_CON)-1)]
     elif style == 2:
-        # pure numeric: "J2145+07"
         return "J" + str(random.randint(1000, 9999)) + "+" + str(random.randint(10, 99))
     elif style == 3:
-        # syllable + number: "Velris-7"
         return _PRE[random.randint(0, len(_PRE)-1)] + _SUF[random.randint(0, len(_SUF)-1)] + "-" + str(random.randint(1, 99))
-    else:
-        # syllable name: "Dranex"
+    elif style == 4:
         return _PRE[random.randint(0, len(_PRE)-1)] + _SUF[random.randint(0, len(_SUF)-1)]
+    elif style == 5:
+        # double catalog: "WASP-12 / HD 4091"
+        return _CAT[random.randint(0, len(_CAT)-1)] + "-" + str(random.randint(1, 200))
+    elif style == 6:
+        # constellation + number: "Orionis V-42"
+        return _CON[random.randint(0, len(_CON)-1)] + " V" + str(random.randint(1, 99))
+    else:
+        # two syllables: "Xendas Korion"
+        return _PRE[random.randint(0, len(_PRE)-1)] + _SUF[random.randint(0, len(_SUF)-1)] + " " + _PRE[random.randint(0, len(_PRE)-1)] + _SUF[random.randint(0, len(_SUF)-1)]
 
 # Planet naming: independent from system
-_PCAT = ["Kepler","Gliese","Proxima","Trappist","Ross","Wolf"]
-_PSUF = ["prime","major","minor","nova","terra","mara","haven"]
-_PPRE = ["Ax","Ze","Io","Mu","Rho","Tau","Nu","Phi","Eta","Psi"]
+_PCAT = ["Kepler","Gliese","Proxima","Trappist","Ross","Wolf",
+         "Barnard","Luyten","Teegarden","Lacaille"]
+_PSUF = ["prime","major","minor","nova","terra","mara","haven",
+         "forge","reach","drift","vale","deep"]
+_PPRE = ["Ax","Ze","Io","Mu","Rho","Tau","Nu","Phi","Eta","Psi",
+         "Sol","Lux","Vex","Nyx","Arx","Dex"]
 
 def gen_planet_name(seed):
     random.seed(seed)
-    style = random.randint(0, 3)
+    style = random.randint(0, 5)
     if style == 0:
-        # catalog: "Kepler-442b"
         return _PCAT[random.randint(0, len(_PCAT)-1)] + "-" + str(random.randint(10, 999)) + chr(random.randint(98, 103))
     elif style == 1:
-        # short + suffix: "Io nova"
         return _PPRE[random.randint(0, len(_PPRE)-1)] + " " + _PSUF[random.randint(0, len(_PSUF)-1)]
     elif style == 2:
-        # pure designation: "P-3741"
         return "P-" + str(random.randint(1000, 9999))
-    else:
-        # compound: "Rho Centauri c"
+    elif style == 3:
         return _PPRE[random.randint(0, len(_PPRE)-1)] + " " + _CON[random.randint(0, len(_CON)-1)][:5] + " " + chr(random.randint(98, 102))
+    elif style == 4:
+        # catalog dash letter: "HAT-274f"
+        return _CAT[random.randint(0, len(_CAT)-1)] + "-" + str(random.randint(10, 999)) + chr(random.randint(98, 104))
+    else:
+        # two-part name: "Nyx Korion"
+        return _PPRE[random.randint(0, len(_PPRE)-1)] + " " + _PRE[random.randint(0, len(_PRE)-1)] + _SUF[random.randint(0, len(_SUF)-1)]
 
 # Galaxy naming & shape types
-# shape: 0=spiral, 1=barred, 2=elliptical, 3=dwarf, 4=ring
-_GTYPE = ["Spiral","Barred","Elliptical","Dwarf","Ring"]
-_GCOLORS = [CYAN, YELLOW, ORANGE, WHITE, PINK]
+# shape: 0=spiral, 1=barred, 2=elliptical, 3=dwarf, 4=ring, 5=irregular-h, 6=irregular-v
+_GTYPE = ["Spiral","Barred","Elliptical","Dwarf","Ring","Irregular","Irregular"]
+_GCOLORS = [CYAN, YELLOW, ORANGE, WHITE, PINK, GREEN, CYAN]
 
 def gen_galaxy_info(seed):
     random.seed(seed)
-    shape = random.randint(0, 4)
+    shape = random.randint(0, 6)
     color = _GCOLORS[shape]
-    style = random.randint(0, 2)
+    style = random.randint(0, 3)
     if style == 0:
         name = _GTYPE[shape] + " " + _CAT[random.randint(0, len(_CAT)-1)] + "-" + str(random.randint(10, 999))
     elif style == 1:
         name = _PRE[random.randint(0, len(_PRE)-1)] + _SUF[random.randint(0, len(_SUF)-1)] + " " + _GTYPE[shape]
-    else:
+    elif style == 2:
         name = _CAT[random.randint(0, len(_CAT)-1)] + " " + str(random.randint(100, 9999))
+    else:
+        name = _GRK[random.randint(0, len(_GRK)-1)] + " " + _GTYPE[shape]
     return (seed, name, shape, color)
 
 # --- Galaxy generation ---
@@ -122,11 +138,21 @@ def gen_galaxy(seed, shape=0):
             d = random.randint(10, 70)
             x = int(cx + d * math.cos(a))
             y = int(cy + d * math.sin(a) // 2)
-        else:  # ring
+        elif shape == 4:  # ring
             a = random.randint(0, 628) / 100.0
             d = random.randint(80, 130)
             x = int(cx + d * math.cos(a))
             y = int(cy + (d * math.sin(a)) // 2)
+        elif shape == 5:  # irregular horizontal
+            x = cx + random.randint(-200, 200)
+            y = cy + random.randint(-40, 40)
+            x += random.randint(-30, 30)
+            y += random.randint(-20, 20)
+        else:  # irregular vertical
+            x = cx + random.randint(-60, 60)
+            y = cy + random.randint(-130, 130)
+            x += random.randint(-25, 25)
+            y += random.randint(-20, 20)
         x = max(20, min(WORLD_W - 20, x))
         y = max(20, min(WORLD_H - 20, y))
         too_close = False
@@ -338,8 +364,30 @@ def _draw_mini_galaxy(lcd, cx, cy, shape, color, sel):
         lcd.ellipse(cx, cy, 14, 8, color, False)
         lcd.ellipse(cx, cy, 13, 7, c2, False)
         lcd.ellipse(cx, cy, 2, 2, color, True)
+    if shape == 5:  # irregular horizontal
+        for _ in range(14):
+            px = cx + random.randint(-16, 16)
+            py = cy + random.randint(-4, 4)
+            if 0 <= px < 160 and 0 <= py < 80:
+                lcd.pixel(px, py, color)
+        for _ in range(5):
+            px = cx + random.randint(-12, 12)
+            py = cy + random.randint(-6, 6)
+            if 0 <= px < 160 and 0 <= py < 80:
+                lcd.pixel(px, py, c2)
+    elif shape == 6:  # irregular vertical
+        for _ in range(14):
+            px = cx + random.randint(-5, 5)
+            py = cy + random.randint(-12, 12)
+            if 0 <= px < 160 and 0 <= py < 80:
+                lcd.pixel(px, py, color)
+        for _ in range(5):
+            px = cx + random.randint(-7, 7)
+            py = cy + random.randint(-10, 10)
+            if 0 <= px < 160 and 0 <= py < 80:
+                lcd.pixel(px, py, c2)
     if sel:
-        lcd.ellipse(cx, cy, 18, 12, WHITE, False)
+        lcd.ellipse(cx, cy, 18, 14, WHITE, False)
 
 # --- Draw galaxy selector ---
 def draw_galaxy_sel(lcd, galaxies, sel_gal):
@@ -369,9 +417,6 @@ def draw_galaxy_sel(lcd, galaxies, sel_gal):
         tx = 1
     lcd.fill_rect(0, 0, 160, 10, BLACK)
     lcd.text(name, tx, 1, YELLOW)
-
-    # hint at bottom
-    lcd.text("<L/R> B:enter", 24, 71, GRAY)
 
 # --- Main entry point ---
 def run():

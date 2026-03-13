@@ -1,6 +1,8 @@
 from machine import Pin,SPI,PWM
 import framebuf
 import time
+import random
+import _thread
 
 #color is BGR
 RED = 0x00F8
@@ -186,6 +188,27 @@ class LCD_0inch96(framebuf.FrameBuffer):
             
     
 def run():
+    # start LED blinking in background
+    led = Pin("LED", Pin.OUT)
+    blink_running = True
+    def blink_loop():
+        delay = 0.2
+        while blink_running:
+            for second in range(1, 11):
+                for _ in range(second):
+                    if not blink_running:
+                        break
+                    led.on()
+                    time.sleep(delay)
+                    led.off()
+                    time.sleep(delay)
+                    delay += random.uniform(-0.04, 0.04)
+                    delay = max(0.01, min(0.5, delay))
+                if not blink_running:
+                    break
+                time.sleep(0.5)
+    _thread.start_new_thread(blink_loop, ())
+
     lcd = LCD_0inch96()   
     lcd.fill(BLACK)   
     lcd.text("Hello Kim!",15,15,RED)
@@ -234,7 +257,13 @@ def run():
 
     #game GUI
 ###    
-    lcd.fill(WHITE)    
+    lcd.fill(BLACK)
+    
+    # fill each cell with a random color
+    for row in range(8):
+        for col in range(16):
+            c = random.getrandbits(16)
+            lcd.fill_rect(col*10+1, row*10+1, 9, 9, c)
     
     i=0
     while(i<=80):    

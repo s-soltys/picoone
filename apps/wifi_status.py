@@ -23,6 +23,12 @@ KEY_LABELS = {
 }
 
 KEYBOARD_NOTE = "Pick 123/ABC/!?"
+WIFI_LIST_ROWS = 4
+WIFI_NAME_X = 12
+WIFI_MARKER_X = 150
+WIFI_NAME_CHARS = 17
+MARQUEE_HOLD_STEPS = 4
+MARQUEE_STEP_MS = 180
 
 
 class WiFiStatusApp:
@@ -36,7 +42,7 @@ class WiFiStatusApp:
         self.selected = 0
         self.scroll = 0
         self.error = ""
-        self.state = "list"
+        self.state = "status"
         self.current_network = None
         self.password_buffer = ""
         self.keyboard_page = 0
@@ -46,6 +52,8 @@ class WiFiStatusApp:
         self.connect_remember = False
         self.connect_drawn = False
         self.result = None
+        self.marquee_key = None
+        self.marquee_started_ms = 0
 
     def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
         ring = BLACK if monochrome and selected else (WHITE if monochrome else YELLOW)
@@ -58,26 +66,39 @@ class WiFiStatusApp:
             lcd.ellipse(cx, cy + 2, 12, 10, ring, False)
 
     def on_open(self, runtime):
-        self.state = "list"
+        self.state = "status"
+        self.results = []
+        self.saved_profiles = runtime.wifi.load_profiles()
         self.selected = 0
         self.scroll = 0
+        self.error = ""
         self.current_network = None
         self.password_buffer = ""
         self.keyboard_page = 0
         self.keyboard_index = 0
         self.keyboard_note = ""
+        self.connect_password = ""
+        self.connect_remember = False
+        self.connect_drawn = False
         self.result = None
-        self.refresh(runtime)
+        self._reset_marquee()
 
     def refresh(self, runtime):
         self.saved_profiles = runtime.wifi.load_profiles()
         data = runtime.wifi.scan()
         self.results = data["results"]
         self.error = data["error"]
+        self._reset_marquee()
         if self.selected >= len(self.results):
             self.selected = max(0, len(self.results) - 1)
         if self.scroll > self.selected:
             self.scroll = self.selected
+
+    def _open_networks(self, runtime):
+        self.selected = 0
+        self.scroll = 0
+        self.refresh(runtime)
+        self.state = "list"
 
     def _selected_item(self):
         if not self.results:
@@ -101,8 +122,58 @@ class WiFiStatusApp:
         self.selected = (self.selected + delta) % count
         if self.selected < self.scroll:
             self.scroll = self.selected
-        if self.selected >= self.scroll + 4:
-            self.scroll = self.selected - 3
+        if self.selected >= self.scroll + WIFI_LIST_ROWS:
+            self.scroll = self.selected - (WIFI_LIST_ROWS - 1)
+
+    def _reset_marquee(self):
+        self.marquee_key = None
+        self.marquee_started_ms = time.ticks_ms()
+
+    def _marquee_offset(self, text, width_chars, key):
+        if len(text) <= width_chars:
+            return 0
+
+        if self.marquee_key != key:
+            self.marquee_key = key
+            self.marquee_started_ms = time.ticks_ms()
+
+        max_offset = len(text) - width_chars
+        cycle = (MARQUEE_HOLD_STEPS * 2) + (max_offset * 2)
+        if cycle <= 0:
+            return 0
+
+        phase = (time.ticks_diff(time.ticks_ms(), self.marquee_started_ms) // MARQUEE_STEP_MS) % cycle
+        if phase < MARQUEE_HOLD_STEPS:
+            return 0
+
+        phase -= MARQUEE_HOLD_STEPS
+        if phase < max_offset:
+            return phase + 1
+
+        phase -= max_offset
+        if phase < MARQUEE_HOLD_STEPS:
+            return max_offset
+
+        phase -= MARQUEE_HOLD_STEPS
+        return max(0, max_offset - 1 - phase)
+
+    def _marquee_text(self, text, width_chars, key):
+        if len(text) <= width_chars:
+            return text
+
+        offset = self._marquee_offset(text, width_chars, key)
+        visible = text[offset:offset + width_chars]
+        if offset > 0:
+            visible = "..." + visible[3:]
+        if offset + width_chars < len(text):
+            visible = visible[:-3] + "..."
+        return visible
+
+    def _network_name(self, item, selected):
+        ssid = item["ssid"]
+        if not selected:
+            return fit_text(ssid, WIFI_NAME_CHARS)
+        return self._marquee_text(ssid, WIFI_NAME_CHARS, ("list", self.selected, ssid))
 
     def _open_keyboard(self, item, password):
         self.current_network = item
@@ -170,6 +241,47 @@ class WiFiStatusApp:
         else:
             self._append_password_char(token)
 
+    def _draw_status(self, lcd, runtime):
+        status = runtime.wifi.status()
+        detail = "LINK" if status["connected"] else ("READY" if status["active"] else "OFF")
+
+        lcd.fill(BLACK)
+        draw_header(lcd, "Wi-Fi", detail, GREEN)
+
+        if not status["supported"]:
+            lcd.text("No network", 4, 18, ORANGE)
+            lcd.text("module here", 4, 30, WHITE)
+            draw_footer(lcd, HOME_HINT)
+            return
+
+        if status["connected"]:
+            ssid = status["ssid"] or "connected"
+            ifconfig = status["ifconfig"] or ("ip ?", "mask ?", "gw ?", "dns ?")
+            lcd.text(self._marquee_text(ssid, 19, ("status", ssid)), 4, 12, CYAN)
+            lcd.text(fit_text("IP " + ifconfig[0], 19), 4, 22, WHITE)
+            lcd.text(fit_text("MASK " + ifconfig[1], 19), 4, 32, WHITE)
+            lcd.text(fit_text("GW " + ifconfig[2], 19), 4, 42, WHITE)
+            lcd.text(fit_text("DNS " + ifconfig[3], 19), 4, 52, GRAY)
+            action = "Join another"
+        elif status["active"]:
+            lcd.text("Not connected", 4, 12, ORANGE)
+            lcd.text("Radio active", 4, 22, CYAN)
+            lcd.text("Open a scan to", 4, 42, WHITE)
+            lcd.text("pick a network", 4, 52, GRAY)
+            action = "Join network"
+        else:
+            lcd.text("Not connected", 4, 12, ORANGE)
+            lcd.text("Radio off", 4, 22, ORANGE)
+            lcd.text("Opening scan", 4, 42, WHITE)
+            lcd.text("will wake Wi-Fi", 4, 52, GRAY)
+            action = "Join network"
+
+        lcd.fill_rect(0, 60, 160, 10, SLATE)
+        lcd.text(">", 2, 61, WHITE)
+        lcd.text(fit_text(action, WIFI_NAME_CHARS), WIFI_NAME_X, 61, WHITE)
+        draw_footer(lcd, HOME_HINT)
+        lcd.text("B open", 110, 71, GRAY)
+
     def _draw_list(self, lcd, runtime):
         status = runtime.wifi.status()
         chosen = self._selected_item()
@@ -193,10 +305,10 @@ class WiFiStatusApp:
             lcd.text(fit_text(ip, 18), 4, 22, WHITE)
         elif status["active"]:
             lcd.text("Radio active", 4, 12, CYAN)
-            lcd.text("Pick a network", 4, 22, WHITE)
+            lcd.text("Choose a network", 4, 22, WHITE)
         else:
             lcd.text("Radio off", 4, 12, ORANGE)
-            lcd.text("A scans", 4, 22, WHITE)
+            lcd.text("Scan woke radio", 4, 22, WHITE)
 
         if chosen:
             saved = self._saved_password(chosen)
@@ -209,16 +321,16 @@ class WiFiStatusApp:
 
         if self.error:
             lcd.text(fit_text(self.error, 18), 4, 34, ORANGE)
-            draw_footer(lcd, "A scan")
+            draw_footer(lcd, "A status")
             return
 
         if not self.results:
             lcd.text("No SSIDs found", 4, 34, GRAY)
-            draw_footer(lcd, "A scan")
+            draw_footer(lcd, "A status")
             return
 
         y = 34
-        end = min(len(self.results), self.scroll + 4)
+        end = min(len(self.results), self.scroll + WIFI_LIST_ROWS)
         for index in range(self.scroll, end):
             item = self.results[index]
             selected = index == self.selected
@@ -226,18 +338,15 @@ class WiFiStatusApp:
                 lcd.fill_rect(0, y - 1, 160, 10, GRAY)
 
             prefix = ">" if selected else " "
-            name = fit_text(item["ssid"], 10)
             text_color = BLACK if selected else WHITE
-            lcd.text(prefix + name, 2, y, text_color)
+            lcd.text(prefix, 2, y, text_color)
+            lcd.text(self._network_name(item, selected), WIFI_NAME_X, y, text_color)
 
             marker = "S" if self._saved_password(item) else ("O" if not self._secure_network(item) else "*")
-            lcd.text(marker, 108, y, BLACK if selected else CYAN)
-
-            rssi = str(item["rssi"])
-            lcd.text(rssi, 126, y, BLACK if selected else CYAN)
+            lcd.text(marker, WIFI_MARKER_X, y, BLACK if selected else CYAN)
             y += 10
 
-        draw_footer(lcd, "A scan", GRAY)
+        draw_footer(lcd, "A status", GRAY)
         lcd.text("B join", 86, 71, GRAY)
 
     def _draw_keyboard(self, lcd):
@@ -297,18 +406,25 @@ class WiFiStatusApp:
             lcd.text(fit_text(ip, 18), 4, 30, WHITE)
             if self.connect_remember and self.connect_password:
                 lcd.text("Password saved", 4, 44, GRAY)
-            draw_footer(lcd, "A scan", GREEN)
-            lcd.text("B back", 86, 71, GREEN)
+            draw_footer(lcd, "A status", GREEN)
+            lcd.text("B nets", 94, 71, GREEN)
         else:
             error = self.result["error"] if self.result else "connection failed"
             lcd.text(fit_text(error, 18), 4, 30, ORANGE)
             if self._secure_network(self.current_network):
                 lcd.text("B edit pass", 4, 44, GRAY)
-                draw_footer(lcd, "A back", RED)
+                draw_footer(lcd, "A status", RED)
                 lcd.text("B edit", 88, 71, RED)
             else:
-                draw_footer(lcd, "A back", RED)
+                draw_footer(lcd, "A status", RED)
                 lcd.text("B retry", 80, 71, RED)
+
+    def _step_status(self, runtime):
+        if runtime.buttons.pressed("B") and runtime.wifi.supported():
+            self._open_networks(runtime)
+            self._draw_list(runtime.lcd, runtime)
+            return
+        self._draw_status(runtime.lcd, runtime)
 
     def _step_list(self, runtime):
         buttons = runtime.buttons
@@ -317,7 +433,7 @@ class WiFiStatusApp:
         if buttons.repeat("DOWN", 180, 100):
             self._move_selection(1)
         if buttons.pressed("A"):
-            self.refresh(runtime)
+            self.state = "status"
         if buttons.pressed("B"):
             chosen = self._selected_item()
             if chosen is None:
@@ -372,14 +488,12 @@ class WiFiStatusApp:
 
         if ok:
             if buttons.pressed("A"):
-                self.state = "list"
-                self.refresh(runtime)
+                self.state = "status"
             if buttons.pressed("B"):
-                self.state = "list"
+                self._open_networks(runtime)
         else:
             if buttons.pressed("A"):
-                self.state = "list"
-                self.refresh(runtime)
+                self.state = "status"
             if buttons.pressed("B") and self._secure_network(self.current_network):
                 self._open_keyboard(self.current_network, self.connect_password)
             elif buttons.pressed("B"):
@@ -387,7 +501,9 @@ class WiFiStatusApp:
         self._draw_result(runtime.lcd)
 
     def step(self, runtime):
-        if self.state == "list":
+        if self.state == "status":
+            self._step_status(runtime)
+        elif self.state == "list":
             self._step_list(runtime)
         elif self.state == "keyboard":
             self._step_keyboard(runtime)

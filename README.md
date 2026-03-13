@@ -33,7 +33,7 @@ Shared controls:
 
 App-specific notes:
 - `Galaxy`: `A` jumps to the next galaxy on the overview, `B` enters the current target, and `A` backs out of deeper views
-- `Wi-Fi`: `A` scans in list/result views and advances the keyboard carousel, `B` joins or picks the highlighted item
+- `Wi-Fi`: opens on a status page, `B` opens the network list from status, `A` returns to status from the list/result views, and `B` joins or picks the highlighted item
 - `Calculator`: `A` deletes one character, `B` presses the highlighted key
 - `Files`: `A` goes back, `B` opens a folder or file preview
 - `Mines`: `A` toggles a flag while playing and restarts after a win/loss, `B` reveals a tile
@@ -78,8 +78,9 @@ Legacy helper scripts are still present at repo root:
 The Wi-Fi app now supports joining networks from the device itself.
 
 It can:
-- show current connection state and IP data
-- scan and list nearby SSIDs with signal/security summary
+- open on a status view with the current SSID plus IP, mask, gateway, and DNS details
+- open a separate network list when you want to join another network
+- scan and list nearby SSIDs with security markers, and horizontally scroll the selected SSID when it is too long
 - connect to open networks directly
 - connect to secured networks through an on-screen password keyboard
 - store successful passwords in `wifi_profiles.txt` on the device

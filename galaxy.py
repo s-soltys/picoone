@@ -10,7 +10,9 @@ STATE_GALAXYSEL = 0
 STATE_GALAXY = 1
 STATE_SYSTEM = 2
 
-# --- World size (virtual galaxy map) ---
+# --- World sizes ---
+UNIV_W = 240
+UNIV_H = 160
 WORLD_W = 640
 WORLD_H = 320
 
@@ -174,30 +176,56 @@ def gen_galaxy(seed, shape=0):
 # --- Planet generation for a solar system ---
 _PLANET_COLORS = [RED, GREEN, BLUE, CYAN, ORANGE, PINK, WHITE, YELLOW]
 
+_ATMO = ["None","Thin","Dense","Toxic","H2/He","N2/O2","CO2","CH4"]
+_PTYPE = ["Rocky","Gas","Ice","Lava","Ocean","Desert"]
+
 def gen_planets(system):
     sseed = system[2]
     random.seed(sseed + 1000)
     n = random.randint(3, 5)
     planets = []
     for i in range(n):
-        orbit_rx = 18 + i * 14
-        orbit_ry = 9 + i * 7
+        orbit_rx = 12 + i * 10  # tighter for left panel
+        orbit_ry = 8 + i * 6
         size = random.randint(1, 3)
         color = _PLANET_COLORS[random.randint(0, len(_PLANET_COLORS)-1)]
         pseed = sseed * 100 + i + 7
         pname = gen_planet_name(pseed)
-        random.seed(sseed + 1000 + (i + 1) * 31)  # restore sequence
+        random.seed(sseed + 1000 + (i + 1) * 31)
         angle = random.randint(0, 628) / 100.0
         speed = 0.08 / (1 + i * 0.5)
-        planets.append([orbit_rx, orbit_ry, size, color, pname, angle, speed])
+        # datapoints
+        mass = random.randint(1, 500)  # x Earth mass (0.1-50.0)
+        temp = random.randint(-200, 800)  # surface temp C
+        radius = random.randint(3, 150)  # x0.1 Earth radii (0.3-15.0)
+        atmo = _ATMO[random.randint(0, len(_ATMO)-1)]
+        ptype = _PTYPE[random.randint(0, len(_PTYPE)-1)]
+        planets.append([orbit_rx, orbit_ry, size, color, pname, angle, speed,
+                        mass, temp, radius, atmo, ptype])
     return planets
 
-# --- Galaxy list generation ---
-def gen_galaxy_list(count=6):
+# --- Galaxy list generation (placed in 2D universe) ---
+def gen_galaxy_list(count=8):
+    random.seed(12345)
     galaxies = []
-    for i in range(count):
-        gseed = (i + 1) * 7741
-        galaxies.append(gen_galaxy_info(gseed))
+    attempts = 0
+    while len(galaxies) < count and attempts < 300:
+        attempts += 1
+        x = random.randint(25, UNIV_W - 25)
+        y = random.randint(25, UNIV_H - 25)
+        too_close = False
+        for g in galaxies:
+            dx = x - g[4]
+            dy = y - g[5]
+            if dx*dx + dy*dy < 1600:  # 40px min
+                too_close = True
+                break
+        if too_close:
+            continue
+        gseed = (len(galaxies) + 1) * 7741 + attempts
+        info = gen_galaxy_info(gseed)
+        # append (seed, name, shape, color, wx, wy)
+        galaxies.append((info[0], info[1], info[2], info[3], x, y))
     return galaxies
 
 # --- Background stars (deterministic, no storage) ---
@@ -270,59 +298,88 @@ def draw_galaxy(lcd, systems, vx, vy, sel_idx):
         lcd.fill_rect(0, 0, 160, 10, BLACK)
         lcd.text(name, tx, 1, YELLOW)
 
-# --- Draw solar system view ---
+# --- Draw solar system view (split: left=orbits, right=info) ---
+INFO_X = 82  # right panel starts here
+
 def draw_system(lcd, system, planets, sel_planet):
     lcd.fill(BLACK)
 
-    # background stars (static, use system seed)
+    # background stars on left panel only
     random.seed(system[2] + 5000)
-    for _ in range(30):
-        px = random.randint(0, 159)
+    for _ in range(15):
+        px = random.randint(0, INFO_X - 2)
         py = random.randint(0, 79)
         lcd.pixel(px, py, GRAY)
 
+    # divider line
+    lcd.vline(INFO_X - 1, 0, 80, GRAY)
+
+    # --- Left panel: orbits centered at (40, 40) ---
+    scx = 40
+    scy = 40
     sun_color = system[4]
-    sun_r = system[5] + 3
+    sun_r = min(system[5] + 2, 5)
 
-    # draw orbits
     for p in planets:
-        lcd.ellipse(80, 40, p[0], p[1], GRAY, False)
+        lcd.ellipse(scx, scy, p[0], p[1], GRAY, False)
 
-    # draw sun
-    lcd.ellipse(80, 40, sun_r, sun_r, sun_color, True)
-    lcd.ellipse(80, 40, sun_r - 1, sun_r - 1, YELLOW, True)
+    lcd.ellipse(scx, scy, sun_r, sun_r, sun_color, True)
+    if sun_r > 1:
+        lcd.ellipse(scx, scy, sun_r - 1, sun_r - 1, YELLOW, True)
 
-    # draw planets
     for i in range(len(planets)):
         p = planets[i]
-        px = 80 + int(p[0] * math.cos(p[5]))
-        py = 40 + int(p[1] * math.sin(p[5]))
-        px = max(0, min(159, px))
+        px = scx + int(p[0] * math.cos(p[5]))
+        py = scy + int(p[1] * math.sin(p[5]))
+        px = max(0, min(INFO_X - 3, px))
         py = max(0, min(79, py))
         lcd.ellipse(px, py, p[2], p[2], p[3], True)
         if i == sel_planet:
             lcd.ellipse(px, py, p[2]+2, p[2]+2, WHITE, False)
 
-    # system name at top
-    name = system[3]
-    if len(name) > 19:
-        name = name[:19]
-    tx = (160 - len(name) * 8) // 2
-    if tx < 1:
-        tx = 1
-    lcd.fill_rect(0, 0, 160, 10, BLACK)
-    lcd.text(name, tx, 1, YELLOW)
+    # --- Right panel: info text ---
+    rx = INFO_X + 1
 
-    # planet name at bottom
+    # system name (top, yellow)
+    sname = system[3]
+    if len(sname) > 9:
+        sname = sname[:9]
+    lcd.text(sname, rx, 1, YELLOW)
+
+    # planet info
     if 0 <= sel_planet < len(planets):
-        pname = planets[sel_planet][4]
-        if len(pname) > 19:
-            pname = pname[:19]
-        ptx = (160 - len(pname) * 8) // 2
-        if ptx < 1:
-            ptx = 1
-        lcd.fill_rect(0, 69, 160, 11, BLACK)
-        lcd.text(pname, ptx, 70, GREEN)
+        p = planets[sel_planet]
+        pname = p[4]
+        if len(pname) > 9:
+            pname = pname[:9]
+        lcd.text(pname, rx, 14, GREEN)
+
+        lcd.text(p[11], rx, 26, WHITE)  # type
+
+        # mass
+        m = p[7]
+        if m < 10:
+            ms = "0." + str(m) + "Me"
+        else:
+            ms = str(m // 10) + "." + str(m % 10) + "Me"
+        lcd.text(ms, rx, 38, CYAN)
+
+        # radius
+        r = p[9]
+        if r < 10:
+            rs = "0." + str(r) + "Re"
+        else:
+            rs = str(r // 10) + "." + str(r % 10) + "Re"
+        lcd.text(rs, rx, 50, CYAN)
+
+        # temp
+        lcd.text(str(p[8]) + "C", rx, 62, ORANGE)
+
+        # atmosphere
+        atm = p[10]
+        if len(atm) > 9:
+            atm = atm[:9]
+        lcd.text(atm, rx, 72, GRAY)
 
 # --- Draw a mini galaxy shape at given center ---
 def _draw_mini_galaxy(lcd, cx, cy, shape, color, sel):
@@ -389,34 +446,45 @@ def _draw_mini_galaxy(lcd, cx, cy, shape, color, sel):
     if sel:
         lcd.ellipse(cx, cy, 18, 14, WHITE, False)
 
-# --- Draw galaxy selector ---
-def draw_galaxy_sel(lcd, galaxies, sel_gal):
+# --- Find nearest galaxy to viewport center ---
+def find_nearest_gal(galaxies, vx, vy):
+    cx = vx + 80
+    cy = vy + 40
+    best = -1
+    best_d = 999999
+    for i in range(len(galaxies)):
+        g = galaxies[i]
+        dx = g[4] - cx
+        dy = g[5] - cy
+        d = dx*dx + dy*dy
+        if d < best_d:
+            best_d = d
+            best = i
+    return best
+
+# --- Draw galaxy selector (scrollable 2D view) ---
+def draw_galaxy_sel(lcd, galaxies, vx, vy, sel_gal):
     lcd.fill(BLACK)
-    # background stars
-    random.seed(999)
-    for _ in range(25):
-        lcd.pixel(random.randint(0, 159), random.randint(0, 79), GRAY)
+    draw_bg_stars(lcd, vx + 5000, vy + 5000)  # offset so stars differ from galaxy map
 
-    g = galaxies[sel_gal]
-    # draw selected galaxy large in center
-    _draw_mini_galaxy(lcd, 80, 38, g[2], g[3], True)
+    for i in range(len(galaxies)):
+        g = galaxies[i]
+        sx = g[4] - vx
+        sy = g[5] - vy
+        if -20 <= sx < 180 and -20 <= sy < 100:
+            _draw_mini_galaxy(lcd, sx, sy, g[2], g[3], i == sel_gal)
 
-    # draw prev/next small on sides
-    if len(galaxies) > 1:
-        pi = (sel_gal - 1) % len(galaxies)
-        ni = (sel_gal + 1) % len(galaxies)
-        _draw_mini_galaxy(lcd, 22, 38, galaxies[pi][2], GRAY, False)
-        _draw_mini_galaxy(lcd, 138, 38, galaxies[ni][2], GRAY, False)
-
-    # name at top
-    name = g[1]
-    if len(name) > 19:
-        name = name[:19]
-    tx = (160 - len(name) * 8) // 2
-    if tx < 1:
-        tx = 1
-    lcd.fill_rect(0, 0, 160, 10, BLACK)
-    lcd.text(name, tx, 1, YELLOW)
+    # show selected galaxy name at top
+    if sel_gal >= 0:
+        g = galaxies[sel_gal]
+        name = g[1]
+        if len(name) > 19:
+            name = name[:19]
+        tx = (160 - len(name) * 8) // 2
+        if tx < 1:
+            tx = 1
+        lcd.fill_rect(0, 0, 160, 10, BLACK)
+        lcd.text(name, tx, 1, YELLOW)
 
 # --- Main entry point ---
 def run():
@@ -446,11 +514,15 @@ def run():
     time.sleep(0.2)
 
     # generate galaxy list
-    galaxies = gen_galaxy_list(6)
+    galaxies = gen_galaxy_list(8)
     sel_gal = 0
     state = STATE_GALAXYSEL
     systems = None
     cur_shape = 0
+    # universe viewport (galaxy selector)
+    uvx = max(0, min(UNIV_W - 160, galaxies[0][4] - 80))
+    uvy = max(0, min(UNIV_H - 80, galaxies[0][5] - 40))
+    # galaxy viewport (star map)
     vx = 0
     vy = 0
     sel_idx = 0
@@ -460,36 +532,39 @@ def run():
 
     while True:
         if state == STATE_GALAXYSEL:
-            # --- Galaxy selector controls (L/R to browse) ---
+            # --- Galaxy selector: d-pad scrolling ---
+            if KEY_UP.value() == 0:
+                uvy = max(0, uvy - scroll_speed)
+            if KEY_DOWN.value() == 0:
+                uvy = min(UNIV_H - 80, uvy + scroll_speed)
             if KEY_LEFT.value() == 0:
-                sel_gal = (sel_gal - 1) % len(galaxies)
-                time.sleep(0.15)
+                uvx = max(0, uvx - scroll_speed)
             if KEY_RIGHT.value() == 0:
-                sel_gal = (sel_gal + 1) % len(galaxies)
-                time.sleep(0.15)
+                uvx = min(UNIV_W - 160, uvx + scroll_speed)
 
-            # CTRL: regenerate galaxy list with new seed
+            # CTRL: jump to next galaxy
             if KEY_CTRL.value() == 0:
-                new_base = random.randint(0, 65535)
-                galaxies = []
-                for i in range(6):
-                    gseed = new_base + (i + 1) * 7741
-                    galaxies.append(gen_galaxy_info(gseed))
-                sel_gal = 0
+                sel_gal = (sel_gal + 1) % len(galaxies)
+                g = galaxies[sel_gal]
+                uvx = max(0, min(UNIV_W - 160, g[4] - 80))
+                uvy = max(0, min(UNIV_H - 80, g[5] - 40))
                 time.sleep(0.2)
 
             # B: enter selected galaxy
             if KEY_B.value() == 0:
-                g = galaxies[sel_gal]
-                cur_shape = g[2]
-                systems = gen_galaxy(g[0], cur_shape)
-                vx = max(0, min(WORLD_W - 160, systems[0][0] - 80))
-                vy = max(0, min(WORLD_H - 80, systems[0][1] - 40))
-                sel_idx = 0
-                state = STATE_GALAXY
-                time.sleep(0.2)
+                sel_gal = find_nearest_gal(galaxies, uvx, uvy)
+                if sel_gal >= 0:
+                    g = galaxies[sel_gal]
+                    cur_shape = g[2]
+                    systems = gen_galaxy(g[0], cur_shape)
+                    vx = max(0, min(WORLD_W - 160, systems[0][0] - 80))
+                    vy = max(0, min(WORLD_H - 80, systems[0][1] - 40))
+                    sel_idx = 0
+                    state = STATE_GALAXY
+                    time.sleep(0.2)
 
-            draw_galaxy_sel(lcd, galaxies, sel_gal)
+            sel_gal = find_nearest_gal(galaxies, uvx, uvy)
+            draw_galaxy_sel(lcd, galaxies, uvx, uvy, sel_gal)
 
         elif state == STATE_GALAXY:
             # --- Galaxy map controls ---

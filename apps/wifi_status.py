@@ -115,6 +115,11 @@ class WiFiStatusApp:
             return ""
         return self.saved_profiles.get(item["ssid"], "")
 
+    def _has_saved_profile(self, item):
+        if item is None:
+            return False
+        return item["ssid"] in self.saved_profiles
+
     def _move_selection(self, delta):
         if not self.results:
             return
@@ -243,7 +248,7 @@ class WiFiStatusApp:
 
     def _draw_status(self, lcd, runtime):
         status = runtime.wifi.status()
-        detail = "LINK" if status["connected"] else ("READY" if status["active"] else "OFF")
+        detail = "LINK" if status["connected"] else ("JOIN" if status.get("connecting") else ("READY" if status["active"] else "OFF"))
 
         lcd.fill(BLACK)
         draw_header(lcd, "Wi-Fi", detail, GREEN)
@@ -263,6 +268,13 @@ class WiFiStatusApp:
             lcd.text(fit_text("GW " + ifconfig[2], 19), 4, 42, WHITE)
             lcd.text(fit_text("DNS " + ifconfig[3], 19), 4, 52, GRAY)
             action = "Join another"
+        elif status.get("connecting"):
+            target = status.get("target") or "saved network"
+            lcd.text("Restoring Wi-Fi", 4, 12, CYAN)
+            lcd.text(fit_text(target, 18), 4, 22, WHITE)
+            lcd.text("Saved profile", 4, 42, WHITE)
+            lcd.text("Please wait", 4, 52, GRAY)
+            action = "Join network"
         elif status["active"]:
             lcd.text("Not connected", 4, 12, ORANGE)
             lcd.text("Radio active", 4, 22, CYAN)
@@ -311,13 +323,13 @@ class WiFiStatusApp:
             lcd.text("Scan woke radio", 4, 22, WHITE)
 
         if chosen:
-            saved = self._saved_password(chosen)
+            saved = self._has_saved_profile(chosen)
             if chosen["hidden"]:
                 lcd.text("Hidden SSID", 4, 22, ORANGE)
             elif self._secure_network(chosen):
                 lcd.text("Saved pass" if saved else "Need password", 4, 22, WHITE)
             else:
-                lcd.text("Open network", 4, 22, WHITE)
+                lcd.text("Saved open" if saved else "Open network", 4, 22, WHITE)
 
         if self.error:
             lcd.text(fit_text(self.error, 18), 4, 34, ORANGE)
@@ -342,7 +354,7 @@ class WiFiStatusApp:
             lcd.text(prefix, 2, y, text_color)
             lcd.text(self._network_name(item, selected), WIFI_NAME_X, y, text_color)
 
-            marker = "S" if self._saved_password(item) else ("O" if not self._secure_network(item) else "*")
+            marker = "S" if self._has_saved_profile(item) else ("O" if not self._secure_network(item) else "*")
             lcd.text(marker, WIFI_MARKER_X, y, BLACK if selected else CYAN)
             y += 10
 
@@ -476,9 +488,17 @@ class WiFiStatusApp:
             return
 
         result = runtime.wifi.connect(self.current_network["ssid"], self.connect_password)
-        if result["ok"] and self.connect_remember and self.connect_password:
-            runtime.wifi.save_profile(self.current_network["ssid"], self.connect_password)
-            self.saved_profiles[self.current_network["ssid"]] = self.connect_password
+        if result["ok"]:
+            remember_password = None
+            if self._secure_network(self.current_network):
+                if self.connect_remember:
+                    remember_password = self.connect_password
+            else:
+                remember_password = ""
+
+            runtime.wifi.remember_connection(self.current_network["ssid"], remember_password)
+            if remember_password is not None:
+                self.saved_profiles[self.current_network["ssid"]] = remember_password
         self._set_result(result["ok"], result["error"], result["ifconfig"])
         self._draw_result(runtime.lcd)
 

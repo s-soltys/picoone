@@ -107,8 +107,10 @@ class Launcher:
         self.draw_home()
 
     def run(self):
+        self.wifi.start_auto_connect()
         self.draw_boot()
         while True:
+            self.wifi.poll_auto_connect()
             self.buttons.update()
             if self.active_app is None:
                 self.step_home()

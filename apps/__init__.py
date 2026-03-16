@@ -1,5 +1,6 @@
 from apps.galaxy_app import GalaxyApp
 from apps.wifi_status import WiFiStatusApp
+from apps.weather_app import WeatherApp
 from apps.calculator import CalculatorApp
 from apps.files_app import FilesApp
 from apps.mines_app import MinesApp
@@ -15,6 +16,7 @@ def build_apps():
     return [
         GalaxyApp(),
         WiFiStatusApp(),
+        WeatherApp(),
         CalculatorApp(),
         FilesApp(),
         MinesApp(),

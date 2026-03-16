@@ -12,7 +12,8 @@ The device now boots into a launcher instead of jumping straight into the galaxy
 
 Included apps:
 - `Galaxy`: the original galaxy/system/planet explorer
-- `Wi-Fi`: status, scan, join flow, and saved passwords
+- `Wi-Fi`: status, scan, join flow, saved passwords, and boot-time reconnect to remembered networks
+- `Weather`: current conditions plus a short forecast for a built-in city list using Open-Meteo
 - `Calculator`: four-function on-screen calculator
 - `Files`: fake read-only file explorer backed by a static in-memory tree
 - `Mines`: compact minesweeper
@@ -34,6 +35,7 @@ Shared controls:
 App-specific notes:
 - `Galaxy`: `A` jumps to the next galaxy on the overview, `B` enters the current target, and `A` backs out of deeper views
 - `Wi-Fi`: opens on a status page, `B` opens the network list from status, `A` returns to status from the list/result views, and `B` joins or picks the highlighted item
+- `Weather`: `Left/Right` switches between built-in cities, `Up/Down` toggles current conditions vs forecast, and `Bottom (B)` refreshes data
 - `Calculator`: `A` deletes one character, `B` presses the highlighted key
 - `Files`: `A` goes back, `B` opens a folder or file preview
 - `Mines`: `A` toggles a flag while playing and restarts after a win/loss, `B` reveals a tile
@@ -53,6 +55,7 @@ App-specific notes:
 - [core/launcher.py](/Users/szymon/picotest/picoone/core/launcher.py): shared runtime and home screen
 - [core/buttons.py](/Users/szymon/picotest/picoone/core/buttons.py): GPIO input handling and `A + B` home-chord detection
 - [core/wifi.py](/Users/szymon/picotest/picoone/core/wifi.py): Pico W network helpers
+- [core/http.py](/Users/szymon/picotest/picoone/core/http.py): small JSON fetch helper for public API-backed apps
 - [core/ui.py](/Users/szymon/picotest/picoone/core/ui.py): shared drawing helpers
 - [apps/](/Users/szymon/picotest/picoone/apps): launcher apps
 
@@ -84,6 +87,7 @@ It can:
 - connect to open networks directly
 - connect to secured networks through an on-screen password keyboard
 - store successful passwords in `wifi_profiles.txt` on the device
+- remember the last successful network and try reconnecting to it on boot
 - reuse credentials from `secrets.py` as a fallback for an existing known SSID
 
 Keyboard flow:
@@ -95,6 +99,21 @@ Keyboard flow:
 Current limits:
 - hidden SSIDs are not joinable from the UI yet
 - there is no WPA Enterprise flow
+
+## Weather App Notes
+
+The Weather app uses the public Open-Meteo API and does not require an API key.
+
+It can:
+- show current temperature, feels-like temperature, wind, and a short condition label
+- show a compact 3-period forecast for the selected city
+- cycle through a small built-in city list without text entry
+- keep the last successful weather payload on-screen if a later refresh fails
+- restore the last saved weather payload after power-off or reboot
+
+Current limits:
+- it depends on Wi-Fi connectivity and a working `urequests` client on the device
+- the built-in city list is static in this repo version
 
 ## Deploying
 

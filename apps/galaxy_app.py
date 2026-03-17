@@ -2,6 +2,7 @@ import galaxy
 import time
 
 from core.display import CYAN, WHITE, YELLOW, BLACK, GRAY, GOLD
+from core.controls import A_LABEL, B_LABEL
 from core.ui import center_x
 
 
@@ -25,7 +26,7 @@ class GalaxyApp:
         self.sel_planet = 0
         self.regions = None
         self.sel_region = 0
-        self.scroll_speed = 6
+        self.scroll_speed = 8
         self.show_splash = False
         self.splash_until = 0
         self.splash_phase = 0
@@ -77,8 +78,9 @@ class GalaxyApp:
         galaxy._draw_mini_galaxy(lcd, 184, 126, 4, YELLOW, False)
         lcd.text("GALAXY", center_x("GALAXY", galaxy.VIEW_W), 40, CYAN)
         lcd.text("EXPLORER", center_x("EXPLORER", galaxy.VIEW_W), 64, WHITE)
-        lcd.text("Charting stars", center_x("Charting stars", galaxy.VIEW_W), 166, GRAY)
-        lcd.text("Top/Bottom skip", center_x("Top/Bottom skip", galaxy.VIEW_W), 188, YELLOW)
+        lcd.text("Wide-scan mode", center_x("Wide-scan mode", galaxy.VIEW_W), 166, GRAY)
+        hint = A_LABEL + " / " + B_LABEL + " skip"
+        lcd.text(hint, center_x(hint, galaxy.VIEW_W), 188, YELLOW)
 
     def step(self, runtime):
         buttons = runtime.buttons

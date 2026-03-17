@@ -13,6 +13,7 @@ The device now boots into a monochrome desktop instead of jumping straight into 
 Included apps:
 - `Galaxy`: the original galaxy/system/planet explorer
 - `Wi-Fi`: status, scan, join flow, saved passwords, and boot-time reconnect to remembered networks
+- `Browser`: bookmark-only faux web browser with API-backed pages
 - `Weather`: current conditions plus a short forecast for a built-in city list using Open-Meteo
 - `Calculator`: four-function on-screen calculator
 - `Files`: fake read-only file explorer backed by a static in-memory tree
@@ -24,11 +25,14 @@ Included apps:
 - `Paint`: simple pixel painter
 
 Desktop shell notes:
-- apps are shown as desktop icons instead of launcher tiles
-- the D-pad now drives a mouse pointer on the desktop
-- the top bar shows greyscale Wi-Fi status at all times on the desktop and maximized utility windows
-- utility apps such as `Weather`, `Calc`, and `Files` open in a maximized window
-- immersive apps such as `Galaxy`, `Mines`, `Invaders`, `Pac-Man`, `Arkanoid`, `Tetris`, and `Paint` stay full screen
+- the shell now leans harder into a tiny Macintosh-style desktop with a top menu bar and denser icon layout
+- apps are shown as compact desktop icons in a `4x4` grid instead of launcher tiles
+- the D-pad drives a mouse pointer on the desktop, including the top menu bar
+- Wi-Fi now lives under the `Wi-Fi` dropdown in the top bar instead of as a desktop icon
+- the top-right corner shows the current `HH:MM` if the device RTC is valid, otherwise it falls back to `PicoOS`
+- utility apps such as `Wi-Fi`, `Browser`, `Weather`, `Calc`, `Files`, and `Games` open in a tighter maximized window shell
+- arcade apps such as `Mines`, `Invaders`, `Pac-Man`, `Arkanoid`, and `Tetris` now live inside the desktop `Games` folder
+- immersive apps such as `Galaxy` and `Paint` stay full screen
 
 ## Controls
 
@@ -41,19 +45,22 @@ Shared controls:
 
 Board notes:
 - The launcher now targets the Pico-LCD-1.3 native `240x240` panel.
-- The board also exposes `X`, `Y`, and joystick press buttons, but this repo version intentionally does not bind them yet.
+- The board exposes `X`, `Y`, and joystick press buttons. This repo version now uses `X` and `Y` in the Browser app for faster site switching.
 
 App-specific notes:
 - `Desktop`: hover an icon with the pointer, `Top (A)` selects it, and `Bottom (B)` opens it
+- `Desktop menu bar`: hover `Wi-Fi` and press `Top (A)` or `Bottom (B)` to open the dropdown, then click a menu item with `Bottom (B)`
 - `Galaxy`: `Top (A)` jumps to the next galaxy on the overview, `Bottom (B)` enters the current target, and `Top (A)` backs out of deeper views
-- `Wi-Fi`: opens on a status page, `Bottom (B)` opens the network list from status, `Top (A)` returns to status from the list/result views, and `Bottom (B)` joins or picks the highlighted item
+- `Wi-Fi`: open it from the top `Wi-Fi` menu. It opens in a maximized window, `Top (A)` closes back to the desktop from status, `Bottom (B)` opens the network list, and `Bottom (B)` joins the highlighted network
+- `Browser`: opens on `about:bookmarks`, `Up/Down` or `X/Y` picks a bookmark, `Bottom (B)` opens or reloads a site, `X/Y` switches sites while reading, and `Top (A)` returns to the bookmark list
 - `Weather`: `Left/Right` switches between built-in cities, `Up/Down` toggles current conditions vs forecast, and `Bottom (B)` refreshes data
 - `Calculator`: `Top (A)` deletes one character, `Bottom (B)` presses the highlighted key
 - `Files`: `Top (A)` goes back, `Bottom (B)` opens a folder or file preview
+- `Games`: opens the arcade folder window, `Up/Down` chooses a game, `Bottom (B)` launches it, and `Top (A)` returns to the desktop
 - `Mines`: `Top (A)` toggles a flag while playing and restarts after a win/loss, `Bottom (B)` reveals a tile
-- `Invaders`: D-pad moves, `Bottom (B)` fires, `Top (A)` restarts
+- `Invaders`: D-pad moves, `Bottom (B)` fires, `Top (A)` restarts, and the pacing is faster than before
 - `Pac-Man`: D-pad steers, `Bottom (B)` pauses/resumes, `Top (A)` restarts
-- `Arkanoid`: D-pad moves, `Bottom (B)` launches, `Top (A)` resets
+- `Arkanoid`: D-pad moves, `Bottom (B)` launches, `Top (A)` resets, and the paddle/ball pace is faster than before
 - `Tetris`: D-pad moves, `Top (A)` rotates, `Bottom (B)` hard-drops
 - `Paint`: D-pad moves, `Top (A)` cycles colors, `Bottom (B)` paints, and choosing white acts as erase
 
@@ -69,6 +76,7 @@ App-specific notes:
 - [core/http.py](/Users/szymon/picotest/picoone/core/http.py): small JSON fetch helper for public API-backed apps
 - [core/ui.py](/Users/szymon/picotest/picoone/core/ui.py): shared drawing helpers
 - [apps/](/Users/szymon/picotest/picoone/apps): launcher apps
+- [apps/games/](/Users/szymon/picotest/picoone/apps/games): arcade game apps shown inside the `Games` desktop folder
 
 Legacy helper scripts are still present at repo root:
 - `lcd_test.py`
@@ -154,6 +162,8 @@ It watches the Pico-LCD board buttons for 20 seconds and prints presses/releases
 4. Register it in [apps/__init__.py](/Users/szymon/picotest/picoone/apps/__init__.py).
 5. Keep navigation on the shared button model and do not bypass the global `A + B` home gesture.
 
+If the app is a game-like launcher item, prefer adding it under [apps/games/](/Users/szymon/picotest/picoone/apps/games) and exposing it through the `Games` folder instead of creating another top-level desktop icon.
+
 `step(runtime)` is called once per frame. Use:
 - `runtime.lcd` for drawing
 - `runtime.buttons` for button state
@@ -197,6 +207,21 @@ It can:
 Current limits:
 - it depends on Wi-Fi connectivity and a working `urequests` client on the device
 - the built-in city list is static in this repo version
+
+## Browser App Notes
+
+The Browser app is intentionally not a general-purpose browser. It renders a small bookmark list and turns each bookmark into a faux site built from live public API data.
+
+Current bookmarks:
+- `WeatherWire`: a weather front page built from Open-Meteo forecast data
+- `Open Shelf`: a book-picks page built from Open Library search results
+- `RateBoard`: a small market page built from Frankfurter exchange-rate data
+- `TapList`: a city brewery guide built from Open Brewery DB
+
+Behavior notes:
+- pages are cached in memory after a successful load so a later failed refresh can still show the stale page
+- the Browser app depends on Wi-Fi and the same HTTP client support as the Weather app
+- this is a bookmark viewer with fake sites, not an arbitrary URL loader
 
 ## Deploying
 

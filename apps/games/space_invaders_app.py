@@ -78,7 +78,7 @@ class SpaceInvadersApp:
 
         edge_hit = False
         for alien in alive:
-            next_x = alien["x"] + (self.alien_dir * 5)
+            next_x = alien["x"] + (self.alien_dir * 7)
             if next_x < PLAY_LEFT or next_x > PLAY_RIGHT:
                 edge_hit = True
                 break
@@ -86,12 +86,12 @@ class SpaceInvadersApp:
         if edge_hit:
             self.alien_dir *= -1
             for alien in alive:
-                alien["y"] += 8
+                alien["y"] += 10
                 if alien["y"] >= PLAYER_Y - 16:
                     self.state = "lost"
         else:
             for alien in alive:
-                alien["x"] += self.alien_dir * 5
+                alien["x"] += self.alien_dir * 7
 
     def _spawn_enemy_bullet(self):
         if self.enemy_bullet is not None:
@@ -105,7 +105,7 @@ class SpaceInvadersApp:
     def _check_player_bullet(self):
         if self.player_bullet is None:
             return
-        self.player_bullet["y"] -= 5
+        self.player_bullet["y"] -= 8
         if self.player_bullet["y"] < CONTENT_TOP + 4:
             self.player_bullet = None
             return
@@ -122,7 +122,7 @@ class SpaceInvadersApp:
     def _check_enemy_bullet(self):
         if self.enemy_bullet is None:
             return
-        self.enemy_bullet["y"] += 4
+        self.enemy_bullet["y"] += 6
         if self.enemy_bullet["y"] > CONTENT_BOTTOM + 4:
             self.enemy_bullet = None
             return
@@ -175,16 +175,16 @@ class SpaceInvadersApp:
 
         if self.state == "playing":
             if buttons.down("LEFT"):
-                self.player_x = max(PLAY_LEFT, self.player_x - 4)
+                self.player_x = max(PLAY_LEFT, self.player_x - 6)
             if buttons.down("RIGHT"):
-                self.player_x = min(PLAY_RIGHT, self.player_x + 4)
+                self.player_x = min(PLAY_RIGHT, self.player_x + 6)
             if buttons.pressed("B") and self.player_bullet is None:
                 self.player_bullet = {"x": self.player_x, "y": PLAYER_BULLET_Y}
 
             self.frame += 1
-            if self.frame % 8 == 0:
+            if self.frame % 6 == 0:
                 self._move_aliens()
-            if self.frame % 20 == 0:
+            if self.frame % 14 == 0:
                 self._spawn_enemy_bullet()
             self._check_player_bullet()
             self._check_enemy_bullet()

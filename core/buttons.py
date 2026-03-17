@@ -1,7 +1,7 @@
 from machine import Pin
 import time
 
-from core.controls import BUTTON_ORDER, BUTTON_PINS
+from core.controls import BUTTON_ORDER, BUTTON_PINS, EXTRA_BUTTON_PINS
 
 
 class ButtonManager:
@@ -18,8 +18,11 @@ class ButtonManager:
         self._now_ms = time.ticks_ms()
         self._home_triggered = False
         self._home_latched = False
+        pin_map = {}
+        pin_map.update(BUTTON_PINS)
+        pin_map.update(EXTRA_BUTTON_PINS)
         for name in BUTTON_ORDER:
-            self._pins[name] = Pin(BUTTON_PINS[name], Pin.IN, Pin.PULL_UP)
+            self._pins[name] = Pin(pin_map[name], Pin.IN, Pin.PULL_UP)
             self._current[name] = False
             self._events[name] = False
             self._repeat_due[name] = None

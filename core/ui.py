@@ -1,3 +1,5 @@
+import time
+
 from core.display import SCREEN_W, SCREEN_H, BLACK, WHITE, GRAY, CYAN, YELLOW, DKGRN, TEAL, SLATE
 from core.controls import HOME_HINT
 
@@ -12,18 +14,22 @@ CONTENT_RIGHT = SCREEN_W - 4
 TEXT_Y_HEADER = 5
 TEXT_Y_FOOTER = SCREEN_H - FOOTER_H + 5
 
-MENU_BAR_H = 16
-DESKTOP_TOP = MENU_BAR_H + 2
-WINDOW_X = 6
-WINDOW_Y = MENU_BAR_H + 8
+MENU_TITLE = "PicoOS"
+MENU_WIFI_LABEL = "Wi-Fi"
+MENU_BAR_H = 14
+DESKTOP_TOP = MENU_BAR_H + 1
+MENU_DROPDOWN_ROW_H = 14
+
+WINDOW_X = 2
+WINDOW_Y = MENU_BAR_H + 3
 WINDOW_W = SCREEN_W - (WINDOW_X * 2)
-WINDOW_H = SCREEN_H - WINDOW_Y - 6
-WINDOW_TITLE_H = 16
-WINDOW_FOOTER_H = 18
-WINDOW_CONTENT_X = WINDOW_X + 8
-WINDOW_CONTENT_Y = WINDOW_Y + WINDOW_TITLE_H + 8
-WINDOW_CONTENT_W = WINDOW_W - 16
-WINDOW_CONTENT_BOTTOM = WINDOW_Y + WINDOW_H - WINDOW_FOOTER_H - 6
+WINDOW_H = SCREEN_H - WINDOW_Y - 2
+WINDOW_TITLE_H = 12
+WINDOW_FOOTER_H = 14
+WINDOW_CONTENT_X = WINDOW_X + 6
+WINDOW_CONTENT_Y = WINDOW_Y + WINDOW_TITLE_H + 6
+WINDOW_CONTENT_W = WINDOW_W - 12
+WINDOW_CONTENT_BOTTOM = WINDOW_Y + WINDOW_H - WINDOW_FOOTER_H - 4
 WINDOW_CONTENT_H = WINDOW_CONTENT_BOTTOM - WINDOW_CONTENT_Y
 WINDOW_FOOTER_Y = WINDOW_Y + WINDOW_H - WINDOW_FOOTER_H
 WINDOW_TEXT_CHARS = max(1, WINDOW_CONTENT_W // 8)
@@ -45,6 +51,47 @@ def center_x(text, width=SCREEN_W, left=0):
 
 def right_x(text, margin=4, width=SCREEN_W, left=0):
     return max(left + margin, left + width - (len(text) * 8) - margin)
+
+
+def menu_clock_text():
+    try:
+        now = time.localtime()
+    except Exception:
+        return MENU_TITLE
+
+    if not now or len(now) < 5:
+        return MENU_TITLE
+
+    year = now[0]
+    if year < 2024:
+        return MENU_TITLE
+    return "{:02d}:{:02d}".format(now[3], now[4])
+
+
+def menu_bar_regions(title=MENU_TITLE, clock_text=None):
+    title = fit_text(title, 8)
+    title_x = 16
+    title_w = len(title) * 8
+    wifi_w = (len(MENU_WIFI_LABEL) * 8) + 8
+    wifi_x = title_x + title_w + 10
+
+    if clock_text is None:
+        clock_text = menu_clock_text()
+    clock_text = fit_text(clock_text, 6)
+    clock_w = len(clock_text) * 8
+    glyph_x = SCREEN_W - 12
+    clock_x = max(wifi_x + wifi_w + 8, glyph_x - 4 - clock_w)
+
+    return {
+        "title": title,
+        "title_x": title_x,
+        "wifi_x": wifi_x,
+        "wifi_w": wifi_w,
+        "wifi_rect": (wifi_x - 2, 1, wifi_w, MENU_BAR_H - 2),
+        "clock_text": clock_text,
+        "clock_x": clock_x,
+        "glyph_x": glyph_x,
+    }
 
 
 def draw_header(lcd, title, detail="", color=CYAN):
@@ -112,15 +159,14 @@ def draw_empty_state(lcd, title, lines, accent=TEAL, footer=HOME_HINT):
 
 def _wifi_status_text(status):
     if not status or not status.get("supported"):
-        return "WiFi OFF"
+        return "OFF"
     if status.get("connected"):
-        ssid = status.get("ssid") or "LINK"
-        return "WiFi " + fit_text(ssid, 6)
+        return "ON"
     if status.get("connecting"):
-        return "WiFi JOIN"
+        return "JOIN"
     if status.get("active"):
-        return "WiFi READY"
-    return "WiFi OFF"
+        return "READY"
+    return "OFF"
 
 
 def draw_wifi_glyph(lcd, x, y, status):
@@ -148,55 +194,92 @@ def draw_wifi_glyph(lcd, x, y, status):
         lcd.hline(x, y + 1, 8, BLACK)
 
 
-def draw_menu_bar(lcd, title, wifi_status=None):
+def draw_menu_bar(lcd, title=MENU_TITLE, wifi_status=None, active_menu=None, clock_text=None):
     lcd.fill_rect(0, 0, SCREEN_W, MENU_BAR_H, WHITE)
     lcd.hline(0, MENU_BAR_H - 1, SCREEN_W, BLACK)
     lcd.fill_rect(3, 3, 8, 8, BLACK)
-    lcd.text(fit_text(title, 14), 16, 4, BLACK)
+
+    regions = menu_bar_regions(title, clock_text)
+    lcd.text(regions["title"], regions["title_x"], 3, BLACK)
+
+    wifi_x, wifi_y, wifi_w, wifi_h = regions["wifi_rect"]
+    if active_menu == "wifi":
+        lcd.fill_rect(wifi_x, wifi_y, wifi_w, wifi_h, BLACK)
+        menu_text_color = WHITE
+    else:
+        menu_text_color = BLACK
+    lcd.text(MENU_WIFI_LABEL, regions["wifi_x"], 3, menu_text_color)
 
     status_text = _wifi_status_text(wifi_status)
-    glyph_x = SCREEN_W - 14
-    draw_wifi_glyph(lcd, glyph_x, 4, wifi_status)
-    text_x = right_x(status_text, 18)
-    lcd.text(fit_text(status_text, 11), text_x, 4, BLACK)
+    if status_text != "OFF":
+        lcd.text(status_text, regions["wifi_x"] + 42, 3, GRAY if active_menu == "wifi" else BLACK)
+
+    draw_wifi_glyph(lcd, regions["glyph_x"], 3, wifi_status)
+    lcd.text(regions["clock_text"], regions["clock_x"], 3, BLACK)
+
+
+def draw_menu_dropdown(lcd, x, y, w, items, selected_index=None):
+    height = (len(items) * MENU_DROPDOWN_ROW_H) + 4
+    lcd.fill_rect(x, y, w, height, WHITE)
+    lcd.rect(x, y, w, height, BLACK)
+
+    for index in range(len(items)):
+        item = items[index]
+        row_y = y + 2 + (index * MENU_DROPDOWN_ROW_H)
+        enabled = item.get("enabled", True)
+        selected = enabled and index == selected_index
+        if selected:
+            lcd.fill_rect(x + 1, row_y, w - 2, MENU_DROPDOWN_ROW_H, BLACK)
+
+        label = fit_text(item.get("label", ""), max(1, (w // 8) - 3))
+        detail = fit_text(item.get("detail", ""), 5)
+        label_color = WHITE if selected else (BLACK if enabled else GRAY)
+        detail_color = WHITE if selected else GRAY
+        lcd.text(label, x + 4, row_y + 3, label_color)
+        if detail:
+            lcd.text(detail, right_x(detail, 4, w, x), row_y + 3, detail_color)
 
 
 def draw_desktop_background(lcd):
     lcd.fill(WHITE)
+    for y in range(DESKTOP_TOP + 10, SCREEN_H, 18):
+        lcd.hline(0, y, SCREEN_W, GRAY)
 
 
 def draw_window_shell(lcd, title, wifi_status=None):
     draw_desktop_background(lcd)
-    draw_menu_bar(lcd, "Pico Finder", wifi_status)
+    draw_menu_bar(lcd, MENU_TITLE, wifi_status)
     lcd.fill_rect(WINDOW_X, WINDOW_Y, WINDOW_W, WINDOW_H, WHITE)
     lcd.rect(WINDOW_X, WINDOW_Y, WINDOW_W, WINDOW_H, BLACK)
-    for y in range(WINDOW_Y + 3, WINDOW_Y + WINDOW_TITLE_H - 1, 2):
-        lcd.hline(WINDOW_X + 16, y, WINDOW_W - 32, GRAY)
-    lcd.rect(WINDOW_X + 4, WINDOW_Y + 4, 9, 9, BLACK)
+
+    for y in range(WINDOW_Y + 2, WINDOW_Y + WINDOW_TITLE_H - 1, 2):
+        lcd.hline(WINDOW_X + 14, y, WINDOW_W - 28, GRAY)
+
+    lcd.fill_rect(WINDOW_X + 4, WINDOW_Y + 3, 6, 6, BLACK)
     title = fit_text(title, max(1, (WINDOW_W // 8) - 8))
     title_x = center_x(title, WINDOW_W, WINDOW_X)
-    lcd.fill_rect(title_x - 4, WINDOW_Y + 2, (len(title) * 8) + 8, 12, WHITE)
-    lcd.text(title, title_x, WINDOW_Y + 4, BLACK)
+    lcd.fill_rect(title_x - 3, WINDOW_Y + 1, (len(title) * 8) + 6, 10, WHITE)
+    lcd.text(title, title_x, WINDOW_Y + 2, BLACK)
     lcd.hline(WINDOW_X + 1, WINDOW_FOOTER_Y, WINDOW_W - 2, BLACK)
 
 
 def draw_window_footer(lcd, text, color=BLACK):
     max_chars = max(1, (WINDOW_CONTENT_W // 8) - 1)
     lcd.fill_rect(WINDOW_X + 1, WINDOW_FOOTER_Y + 1, WINDOW_W - 2, WINDOW_FOOTER_H - 1, WHITE)
-    lcd.text(fit_text(text, max_chars), WINDOW_CONTENT_X, WINDOW_FOOTER_Y + 5, color)
+    lcd.text(fit_text(text, max_chars), WINDOW_CONTENT_X, WINDOW_FOOTER_Y + 3, color)
 
 
 def draw_window_footer_actions(lcd, left_text, right_text="", color=BLACK):
     lcd.fill_rect(WINDOW_X + 1, WINDOW_FOOTER_Y + 1, WINDOW_W - 2, WINDOW_FOOTER_H - 1, WHITE)
     if not right_text:
-        lcd.text(fit_text(left_text, max(1, (WINDOW_CONTENT_W // 8) - 1)), WINDOW_CONTENT_X, WINDOW_FOOTER_Y + 5, color)
+        lcd.text(fit_text(left_text, max(1, (WINDOW_CONTENT_W // 8) - 1)), WINDOW_CONTENT_X, WINDOW_FOOTER_Y + 3, color)
         return
 
     half_chars = max(1, ((WINDOW_CONTENT_W // 2) - 8) // 8)
     left_text = fit_text(left_text, half_chars)
     right_text = fit_text(right_text, half_chars)
-    lcd.text(left_text, WINDOW_CONTENT_X, WINDOW_FOOTER_Y + 5, color)
-    lcd.text(right_text, right_x(right_text, 8, WINDOW_W, WINDOW_X), WINDOW_FOOTER_Y + 5, color)
+    lcd.text(left_text, WINDOW_CONTENT_X, WINDOW_FOOTER_Y + 3, color)
+    lcd.text(right_text, right_x(right_text, 8, WINDOW_W, WINDOW_X), WINDOW_FOOTER_Y + 3, color)
 
 
 def draw_window_empty_state(lcd, title, lines, wifi_status=None, footer=HOME_HINT):
@@ -210,16 +293,16 @@ def draw_window_empty_state(lcd, title, lines, wifi_status=None, footer=HOME_HIN
 
 def draw_desktop_icon(lcd, x, y, w, h, title, selected, icon_fn):
     cx = x + (w // 2)
-    cy = y + 16
+    cy = y + 12
     if selected:
-        lcd.rect(cx - 17, y + 1, 34, 30, BLACK)
+        lcd.rect(cx - 14, y + 2, 28, 24, BLACK)
 
     icon_fn(lcd, cx, cy, True, True)
 
-    label = fit_text(title, max(4, w // 8))
+    label = fit_text(title, max(4, (w // 8) - 1))
     label_w = len(label) * 8
     label_x = x + max(0, (w - label_w) // 2)
-    label_y = y + h - 12
+    label_y = y + h - 11
     if selected:
         lcd.fill_rect(label_x - 2, label_y - 1, label_w + 4, 11, BLACK)
         lcd.text(label, label_x, label_y, WHITE)

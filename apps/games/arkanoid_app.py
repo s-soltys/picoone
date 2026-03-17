@@ -23,8 +23,8 @@ class ArkanoidApp:
         self.paddle_x = (SCREEN_W - PADDLE_W) // 2
         self.ball_x = SCREEN_W // 2
         self.ball_y = PADDLE_Y - 8
-        self.ball_vx = 2
-        self.ball_vy = -2
+        self.ball_vx = 3
+        self.ball_vy = -3
         self.launched = False
         self.lives = 3
         self.state = "playing"
@@ -47,8 +47,8 @@ class ArkanoidApp:
         self.paddle_x = (SCREEN_W - PADDLE_W) // 2
         self.ball_x = SCREEN_W // 2
         self.ball_y = PADDLE_Y - 8
-        self.ball_vx = 2
-        self.ball_vy = -2
+        self.ball_vx = 3
+        self.ball_vy = -3
         self.launched = False
         self.lives = 3
         self.state = "playing"
@@ -67,8 +67,8 @@ class ArkanoidApp:
     def _reset_ball(self):
         self.ball_x = self.paddle_x + (PADDLE_W // 2)
         self.ball_y = PADDLE_Y - 8
-        self.ball_vx = 2
-        self.ball_vy = -2
+        self.ball_vx = 3
+        self.ball_vy = -3
         self.launched = False
 
     def _update_ball(self):
@@ -90,13 +90,13 @@ class ArkanoidApp:
             self.ball_vy = -abs(self.ball_vy)
             hit = self.ball_x - (self.paddle_x + (PADDLE_W // 2))
             if hit < -4:
-                self.ball_vx = -3
+                self.ball_vx = -4
             elif hit > 4:
-                self.ball_vx = 3
+                self.ball_vx = 4
             elif hit < 0:
-                self.ball_vx = -2
+                self.ball_vx = -3
             elif hit > 0:
-                self.ball_vx = 2
+                self.ball_vx = 3
 
         for brick in self.bricks:
             if not brick["alive"]:
@@ -154,9 +154,9 @@ class ArkanoidApp:
 
         if self.state == "playing":
             if buttons.down("LEFT"):
-                self.paddle_x = max(4, self.paddle_x - 4)
+                self.paddle_x = max(4, self.paddle_x - 6)
             if buttons.down("RIGHT"):
-                self.paddle_x = min(SCREEN_W - PADDLE_W - 4, self.paddle_x + 4)
+                self.paddle_x = min(SCREEN_W - PADDLE_W - 4, self.paddle_x + 6)
             if buttons.pressed("B") and not self.launched:
                 self.launched = True
             self._update_ball()

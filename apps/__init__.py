@@ -1,27 +1,31 @@
-from apps.galaxy_app import GalaxyApp
-from apps.wifi_status import WiFiStatusApp
-from apps.weather_app import WeatherApp
+from apps.browser_app import BrowserApp
 from apps.calculator import CalculatorApp
 from apps.files_app import FilesApp
-from apps.mines_app import MinesApp
-from apps.space_invaders_app import SpaceInvadersApp
-from apps.pacman_app import PacmanApp
-from apps.arkanoid_app import ArkanoidApp
-from apps.tetris_app import TetrisApp
+from apps.galaxy_app import GalaxyApp
+from apps.games import build_games
+from apps.games_folder_app import GamesFolderApp
+from apps.mtg_life_app import MTGLifeCounterApp
 from apps.paint_app import PaintApp
+from apps.weather_app import WeatherApp
+from apps.wifi_status import WiFiStatusApp
 
 
 def build_apps():
-    return [
+    games = build_games()
+    desktop = [
         GalaxyApp(),
-        WiFiStatusApp(),
+        BrowserApp(),
         WeatherApp(),
         CalculatorApp(),
         FilesApp(),
-        MinesApp(),
-        SpaceInvadersApp(),
-        PacmanApp(),
-        ArkanoidApp(),
-        TetrisApp(),
+        MTGLifeCounterApp(),
         PaintApp(),
+        GamesFolderApp(games),
     ]
+    return {
+        "desktop": desktop,
+        "menu": {
+            "wifi": WiFiStatusApp(),
+        },
+        "games": games,
+    }

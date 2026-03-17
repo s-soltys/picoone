@@ -13,8 +13,10 @@ EXTRA_BUTTON_PINS = {
     "CTRL": 3,
 }
 
-BUTTON_ORDER = ("UP", "DOWN", "LEFT", "RIGHT", "A", "B")
+BUTTON_ORDER = ("UP", "DOWN", "LEFT", "RIGHT", "A", "B", "X", "Y")
 
 A_LABEL = "Top (A)"
 B_LABEL = "Bottom (B)"
+X_LABEL = "X"
+Y_LABEL = "Y"
 HOME_HINT = "Top + Bottom home"

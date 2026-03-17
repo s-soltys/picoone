@@ -2,8 +2,8 @@ from machine import Pin
 import time
 import math
 import random
-from core.controls import BUTTON_PINS
-from core.ui import fit_text, center_x
+from core.controls import BUTTON_PINS, A_LABEL, B_LABEL
+from core.ui import fit_text, center_x, right_x
 from core.display import (LCD, SCREEN_W, SCREEN_H, RED, GREEN, BLUE, WHITE, BLACK,
                           YELLOW, CYAN, GRAY, ORANGE, PINK, DKRED,
                           PURPLE, TEAL, RUST, CRIMSON, BROWN, GOLD, SLATE,
@@ -23,6 +23,9 @@ UNIV_H = max(VIEW_H + 80, 320)
 WORLD_W = max(VIEW_W * 4, 960)
 WORLD_H = max(VIEW_H * 3, 720)
 TITLE_BAR_H = 18
+FOOTER_BAR_H = 16
+SYSTEM_HUD_H = 78
+PLANET_HUD_H = 86
 
 # --- Name generation ---
 # Star/system naming: catalog-style scientific designations
@@ -263,6 +266,24 @@ def draw_bg_stars(lcd, vx, vy):
                         c = WHITE if hk % 7 == 0 else GRAY
                         lcd.pixel(px, py, c)
 
+
+def _draw_viewfinder(lcd, cx, cy, color=GRAY):
+    lcd.hline(cx - 8, cy, 4, color)
+    lcd.hline(cx + 5, cy, 4, color)
+    lcd.vline(cx, cy - 8, 4, color)
+    lcd.vline(cx, cy + 5, 4, color)
+    lcd.pixel(cx, cy, WHITE)
+
+
+def _draw_footer_bar(lcd, left_text, right_text="", color=GRAY):
+    y = VIEW_H - FOOTER_BAR_H
+    lcd.fill_rect(0, y, VIEW_W, FOOTER_BAR_H, BLACK)
+    lcd.hline(0, y, VIEW_W, color)
+    lcd.text(fit_text(left_text, max(1, (VIEW_W // 16) - 1)), 4, y + 4, color)
+    if right_text:
+        right_text = fit_text(right_text, max(1, (VIEW_W // 16) - 1))
+        lcd.text(right_text, right_x(right_text), y + 4, color)
+
 # --- Find nearest system to viewport center ---
 def find_nearest(systems, vx, vy):
     cx = vx + (VIEW_W // 2)
@@ -295,41 +316,39 @@ def draw_galaxy(lcd, systems, vx, vy, sel_idx):
                 # selection ring
                 lcd.ellipse(sx, sy, s[5]+3, s[5]+3, WHITE, False)
 
-    # show selected system name at top
+    _draw_viewfinder(lcd, VIEW_W // 2, VIEW_H // 2)
+
     if sel_idx >= 0:
         s = systems[sel_idx]
         name = fit_text(s[3], max(1, (VIEW_W // 8) - 2))
         lcd.fill_rect(0, 0, VIEW_W, TITLE_BAR_H, BLACK)
         lcd.text(name, center_x(name, VIEW_W), 5, YELLOW)
+        lcd.text(str(sel_idx + 1) + "/" + str(len(systems)), 4, VIEW_H - FOOTER_BAR_H - 14, GRAY)
+    _draw_footer_bar(lcd, A_LABEL + " back", B_LABEL + " enter")
 
-# --- Draw solar system view (split: left=orbits, right=info) ---
+# --- Draw solar system view (full scene + bottom info hud) ---
 INFO_X = 138
 
 def draw_system(lcd, system, planets, sel_planet):
     lcd.fill(BLACK)
-    left_w = INFO_X - 2
-    scx = left_w // 2
-    scy = VIEW_H // 2
-    orbit_scale_x = 2
-    orbit_scale_y = 2
-    line_h = 18
+    hud_y = VIEW_H - SYSTEM_HUD_H
+    scx = VIEW_W // 2
+    scy = max(36, (hud_y // 2) - 4)
+    max_rx = planets[-1][0] + 4
+    max_ry = planets[-1][1] + 4
+    orbit_scale = min((VIEW_W - 36) / float(max_rx * 2), (hud_y - 34) / float(max_ry * 2))
 
-    # background stars on left panel only
     random.seed(system[2] + 5000)
-    for _ in range(40):
-        px = random.randint(0, INFO_X - 2)
-        py = random.randint(0, VIEW_H - 1)
+    for _ in range(54):
+        px = random.randint(0, VIEW_W - 1)
+        py = random.randint(TITLE_BAR_H, hud_y - 2)
         lcd.pixel(px, py, GRAY)
 
-    # divider line
-    lcd.vline(INFO_X - 1, 0, VIEW_H, GRAY)
-
-    # --- Left panel: orbits centered in the play area ---
     sun_color = system[4]
-    sun_r = min(system[5] + 4, 8)
+    sun_r = min(system[5] + 6, 11)
 
     for p in planets:
-        lcd.ellipse(scx, scy, p[0] * orbit_scale_x, p[1] * orbit_scale_y, GRAY, False)
+        lcd.ellipse(scx, scy, max(10, int(p[0] * orbit_scale)), max(6, int(p[1] * orbit_scale)), GRAY, False)
 
     lcd.ellipse(scx, scy, sun_r, sun_r, sun_color, True)
     if sun_r > 1:
@@ -337,46 +356,41 @@ def draw_system(lcd, system, planets, sel_planet):
 
     for i in range(len(planets)):
         p = planets[i]
-        px = scx + int((p[0] * orbit_scale_x) * math.cos(p[5]))
-        py = scy + int((p[1] * orbit_scale_y) * math.sin(p[5]))
-        px = max(0, min(INFO_X - 3, px))
-        py = max(0, min(VIEW_H - 1, py))
-        lcd.ellipse(px, py, p[2] + 2, p[2] + 2, p[3], True)
+        px = scx + int((p[0] * orbit_scale) * math.cos(p[5]))
+        py = scy + int((p[1] * orbit_scale) * math.sin(p[5]))
+        px = max(6, min(VIEW_W - 7, px))
+        py = max(TITLE_BAR_H + 6, min(hud_y - 8, py))
+        lcd.ellipse(px, py, p[2] + 3, p[2] + 3, p[3], True)
         if i == sel_planet:
-            lcd.ellipse(px, py, p[2] + 5, p[2] + 5, WHITE, False)
+            lcd.ellipse(px, py, p[2] + 6, p[2] + 6, WHITE, False)
 
-    # --- Right panel: info text ---
-    rx = INFO_X + 4
-    text_chars = max(1, (VIEW_W - rx - 4) // 8)
-    lcd.text(fit_text(system[3], text_chars), rx, 8, YELLOW)
+    lcd.fill_rect(0, 0, VIEW_W, TITLE_BAR_H, BLACK)
+    title = fit_text(system[3], max(1, (VIEW_W // 8) - 2))
+    lcd.text(title, center_x(title, VIEW_W), 5, YELLOW)
 
-    # planet info
+    lcd.fill_rect(0, hud_y, VIEW_W, SYSTEM_HUD_H - FOOTER_BAR_H, BLACK)
+    lcd.hline(0, hud_y, VIEW_W, GRAY)
     if 0 <= sel_planet < len(planets):
         p = planets[sel_planet]
-        lcd.text(fit_text(p[4], text_chars), rx, 8 + line_h, TEAL)
-        lcd.text(fit_text(p[11], text_chars), rx, 8 + (line_h * 2), WHITE)
+        text_chars = max(1, (VIEW_W // 8) - 2)
+        planet_name = fit_text(p[4], text_chars - 5)
+        lcd.text(planet_name, 6, hud_y + 6, TEAL)
+        lcd.text(str(sel_planet + 1) + "/" + str(len(planets)), VIEW_W - 28, hud_y + 6, WHITE)
+        lcd.text(fit_text(p[11] + " / " + p[10], text_chars), 6, hud_y + 24, WHITE)
 
-        # mass
         m = p[7]
         if m < 10:
             ms = "0." + str(m) + "Me"
         else:
             ms = str(m // 10) + "." + str(m % 10) + "Me"
-        lcd.text(fit_text(ms, text_chars), rx, 8 + (line_h * 3), CYAN)
-
-        # radius
         r = p[9]
         if r < 10:
             rs = "0." + str(r) + "Re"
         else:
             rs = str(r // 10) + "." + str(r % 10) + "Re"
-        lcd.text(fit_text(rs, text_chars), rx, 8 + (line_h * 4), CYAN)
+        lcd.text(fit_text(ms + "  " + rs + "  " + str(p[8]) + "C", text_chars), 6, hud_y + 42, CYAN)
 
-        # temp
-        lcd.text(fit_text(str(p[8]) + "C", text_chars), rx, 8 + (line_h * 5), ORANGE)
-
-        # atmosphere
-        lcd.text(fit_text(p[10], text_chars), rx, 8 + (line_h * 6), GRAY)
+    _draw_footer_bar(lcd, A_LABEL + " back", B_LABEL + " land")
 
 # --- Region generation for a planet surface ---
 _RTYPE = ["Mountain","Canyon","Crater","Volcano","Ocean",
@@ -410,16 +424,15 @@ def gen_regions(planet):
         regions.append([a, d_frac, rsize, rcolor, rname, rtype, elev, rad, bio])
     return regions
 
-# --- Draw planet surface view (split: left=planet, right=scanner) ---
+# --- Draw planet surface view (large planet + bottom scanner hud) ---
 def draw_planet(lcd, planet, regions, sel_region):
     lcd.fill(BLACK)
-
-    left_w = INFO_X - 2
-    pcx = left_w // 2
-    pcy = VIEW_H // 2
+    hud_y = VIEW_H - PLANET_HUD_H
+    pcx = VIEW_W // 2
+    pcy = max(42, (hud_y // 2) + 2)
     pcolor = planet[3]
-    pr = 66
-    text_chars = max(1, (VIEW_W - INFO_X - 8) // 8)
+    pr = min((VIEW_W // 2) - 20, (hud_y // 2) - 12)
+    text_chars = max(1, (VIEW_W // 8) - 2)
 
     # atmosphere glow (outer halo)
     atm = planet[10]
@@ -552,7 +565,7 @@ def draw_planet(lcd, planet, regions, sel_region):
         shadow_start = pcx + bw // 2
         shadow_end = pcx + bw
         for sx in range(shadow_start, shadow_end + 1):
-            if 0 <= sx < INFO_X - 2 and 0 <= pcy + sy < VIEW_H:
+            if 0 <= sx < VIEW_W and 0 <= pcy + sy < hud_y:
                 lcd.pixel(sx, pcy + sy, BLACK)
 
     # re-draw planet outline for clean edge
@@ -571,50 +584,32 @@ def draw_planet(lcd, planet, regions, sel_region):
         ddx = rx - pcx
         ddy = ry - pcy
         if ddx * ddx + ddy * ddy <= pr * pr:
-            rx = max(1, min(INFO_X - 4, rx))
-            ry = max(1, min(VIEW_H - 2, ry))
+            rx = max(4, min(VIEW_W - 5, rx))
+            ry = max(TITLE_BAR_H + 4, min(hud_y - 4, ry))
             lcd.ellipse(rx, ry, r[2], r[2], r[3], True)
             if i == sel_region:
                 lcd.ellipse(rx, ry, r[2] + 2, r[2] + 2, WHITE, False)
 
-    # divider
-    lcd.vline(INFO_X - 1, 0, VIEW_H, GRAY)
+    lcd.fill_rect(0, 0, VIEW_W, TITLE_BAR_H, BLACK)
+    title = fit_text(planet[4], max(1, (VIEW_W // 8) - 2))
+    lcd.text(title, center_x(title, VIEW_W), 5, TEAL)
 
-    # --- Right panel: scanner info ---
-    rx_t = INFO_X + 4
+    lcd.fill_rect(0, hud_y, VIEW_W, PLANET_HUD_H - FOOTER_BAR_H, BLACK)
+    lcd.hline(0, hud_y, VIEW_W, GRAY)
+    lcd.text(fit_text(planet[11] + " / " + planet[10], text_chars), 6, hud_y + 6, GRAY)
 
-    # planet name
-    lcd.text(fit_text(planet[4], text_chars), rx_t, 8, TEAL)
-
-    # planet type
-    lcd.text(fit_text(planet[11], text_chars), rx_t, 28, GRAY)
-
-    # selected region info
     if 0 <= sel_region < len(regions):
         rg = regions[sel_region]
-        # region name (may need 2 lines)
-        rn = rg[4]
-        if len(rn) > text_chars:
-            lcd.text(fit_text(rn[: text_chars], text_chars), rx_t, 56, rg[3])
-            lcd.text(fit_text(rn[text_chars : text_chars * 2], text_chars), rx_t, 74, rg[3])
-            ny = 100
-        else:
-            lcd.text(rn, rx_t, 56, rg[3])
-            ny = 82
-
-        # elevation
+        lcd.text(fit_text(rg[4], text_chars), 6, hud_y + 24, rg[3])
         e = rg[6]
         if e >= 0:
             es = "+" + str(e) + "m"
         else:
             es = str(e) + "m"
-        lcd.text(fit_text(es, text_chars), rx_t, ny, CYAN)
+        stats = es + "  Rad " + str(rg[7]) + "%  Bio " + str(rg[8]) + "%"
+        lcd.text(fit_text(stats, text_chars), 6, hud_y + 42, CYAN)
 
-        # radiation
-        lcd.text(fit_text("Rad:" + str(rg[7]) + "%", text_chars), rx_t, ny + 20, ORANGE)
-
-        # bio signal
-        lcd.text(fit_text("Bio:" + str(rg[8]) + "%", text_chars), rx_t, ny + 40, TEAL)
+    _draw_footer_bar(lcd, A_LABEL + " orbit", "L/R region")
 
 # --- Draw a mini galaxy shape at given center ---
 def _draw_mini_galaxy(lcd, cx, cy, shape, color, sel):
@@ -709,12 +704,15 @@ def draw_galaxy_sel(lcd, galaxies, vx, vy, sel_gal):
         if -20 <= sx < VIEW_W + 20 and -20 <= sy < VIEW_H + 20:
             _draw_mini_galaxy(lcd, sx, sy, g[2], g[3], i == sel_gal)
 
-    # show selected galaxy name at top
+    _draw_viewfinder(lcd, VIEW_W // 2, VIEW_H // 2)
+
     if sel_gal >= 0:
         g = galaxies[sel_gal]
         name = fit_text(g[1], max(1, (VIEW_W // 8) - 2))
         lcd.fill_rect(0, 0, VIEW_W, TITLE_BAR_H, BLACK)
         lcd.text(name, center_x(name, VIEW_W), 5, YELLOW)
+        lcd.text(_GTYPE[g[2]], 4, VIEW_H - FOOTER_BAR_H - 14, GRAY)
+    _draw_footer_bar(lcd, A_LABEL + " next", B_LABEL + " enter")
 
 # --- Main entry point ---
 def run():

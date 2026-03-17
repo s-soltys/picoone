@@ -1,7 +1,18 @@
 import random
 
-from lcd import BLACK, WHITE, GRAY, YELLOW, GREEN, RED, CYAN
-from core.ui import draw_header, draw_footer
+from core.display import BLACK, WHITE, GRAY, YELLOW, GREEN, RED, CYAN
+from core.controls import A_LABEL, B_LABEL
+from core.ui import CONTENT_TOP, CONTENT_BOTTOM, SCREEN_W, draw_header, draw_footer_actions
+
+
+PLAY_LEFT = 18
+PLAY_RIGHT = SCREEN_W - 18
+PLAYER_Y = CONTENT_BOTTOM - 18
+PLAYER_BULLET_Y = PLAYER_Y - 10
+ALIEN_TOP = CONTENT_TOP + 36
+ALIEN_COL_SPACING = 38
+ALIEN_ROW_SPACING = 22
+ALIEN_LEFT = PLAY_LEFT + 14
 
 
 class SpaceInvadersApp:
@@ -10,7 +21,7 @@ class SpaceInvadersApp:
     accent = GREEN
 
     def __init__(self):
-        self.player_x = 78
+        self.player_x = SCREEN_W // 2
         self.player_lives = 3
         self.aliens = []
         self.alien_dir = 1
@@ -34,14 +45,14 @@ class SpaceInvadersApp:
         self.reset_game()
 
     def reset_game(self):
-        self.player_x = 78
+        self.player_x = SCREEN_W // 2
         self.player_lives = 3
         self.aliens = []
         for row in range(3):
             for col in range(5):
                 self.aliens.append({
-                    "x": 24 + (col * 22),
-                    "y": 16 + (row * 10),
+                    "x": ALIEN_LEFT + (col * ALIEN_COL_SPACING),
+                    "y": ALIEN_TOP + (row * ALIEN_ROW_SPACING),
                     "alive": True,
                     "color": GREEN if row < 2 else CYAN,
                 })
@@ -68,15 +79,15 @@ class SpaceInvadersApp:
         edge_hit = False
         for alien in alive:
             next_x = alien["x"] + (self.alien_dir * 5)
-            if next_x < 10 or next_x > 146:
+            if next_x < PLAY_LEFT or next_x > PLAY_RIGHT:
                 edge_hit = True
                 break
 
         if edge_hit:
             self.alien_dir *= -1
             for alien in alive:
-                alien["y"] += 5
-                if alien["y"] >= 56:
+                alien["y"] += 8
+                if alien["y"] >= PLAYER_Y - 16:
                     self.state = "lost"
         else:
             for alien in alive:
@@ -95,7 +106,7 @@ class SpaceInvadersApp:
         if self.player_bullet is None:
             return
         self.player_bullet["y"] -= 5
-        if self.player_bullet["y"] < 11:
+        if self.player_bullet["y"] < CONTENT_TOP + 4:
             self.player_bullet = None
             return
 
@@ -112,11 +123,11 @@ class SpaceInvadersApp:
         if self.enemy_bullet is None:
             return
         self.enemy_bullet["y"] += 4
-        if self.enemy_bullet["y"] > 69:
+        if self.enemy_bullet["y"] > CONTENT_BOTTOM + 4:
             self.enemy_bullet = None
             return
 
-        if abs(self.enemy_bullet["x"] - self.player_x) <= 9 and self.enemy_bullet["y"] >= 60:
+        if abs(self.enemy_bullet["x"] - self.player_x) <= 9 and self.enemy_bullet["y"] >= PLAYER_Y - 4:
             self.enemy_bullet = None
             self.player_lives -= 1
             if self.player_lives <= 0:
@@ -138,25 +149,22 @@ class SpaceInvadersApp:
             lcd.vline(x - 4, y + 4, 3, alien["color"])
             lcd.vline(x + 3, y + 4, 3, alien["color"])
 
-        lcd.fill_rect(self.player_x - 9, 62, 18, 4, WHITE)
-        lcd.fill_rect(self.player_x - 4, 58, 8, 4, CYAN)
+        lcd.fill_rect(self.player_x - 12, PLAYER_Y + 4, 24, 5, WHITE)
+        lcd.fill_rect(self.player_x - 5, PLAYER_Y - 1, 10, 5, CYAN)
 
         if self.player_bullet:
-            lcd.vline(self.player_bullet["x"], self.player_bullet["y"], 4, YELLOW)
+            lcd.vline(self.player_bullet["x"], self.player_bullet["y"], 8, YELLOW)
         if self.enemy_bullet:
-            lcd.vline(self.enemy_bullet["x"], self.enemy_bullet["y"], 4, RED)
+            lcd.vline(self.enemy_bullet["x"], self.enemy_bullet["y"], 8, RED)
 
-        lcd.text("S" + str(self.score), 120, 12, WHITE)
+        lcd.text("S" + str(self.score), SCREEN_W - 44, CONTENT_TOP - 12, WHITE)
 
         if self.state == "playing":
-            draw_footer(lcd, "B fire", GRAY)
-            lcd.text("A reset", 80, 71, GRAY)
+            draw_footer_actions(lcd, B_LABEL + " fire", A_LABEL + " reset", GRAY)
         elif self.state == "won":
-            draw_footer(lcd, "Wave clear", CYAN)
-            lcd.text("A restart", 72, 71, CYAN)
+            draw_footer_actions(lcd, "Wave clear", A_LABEL + " restart", CYAN)
         else:
-            draw_footer(lcd, "Invaded", RED)
-            lcd.text("A restart", 72, 71, RED)
+            draw_footer_actions(lcd, "Invaded", A_LABEL + " restart", RED)
 
     def step(self, runtime):
         buttons = runtime.buttons
@@ -167,11 +175,11 @@ class SpaceInvadersApp:
 
         if self.state == "playing":
             if buttons.down("LEFT"):
-                self.player_x = max(16, self.player_x - 3)
+                self.player_x = max(PLAY_LEFT, self.player_x - 4)
             if buttons.down("RIGHT"):
-                self.player_x = min(144, self.player_x + 3)
+                self.player_x = min(PLAY_RIGHT, self.player_x + 4)
             if buttons.pressed("B") and self.player_bullet is None:
-                self.player_bullet = {"x": self.player_x, "y": 56}
+                self.player_bullet = {"x": self.player_x, "y": PLAYER_BULLET_Y}
 
             self.frame += 1
             if self.frame % 8 == 0:

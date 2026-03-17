@@ -1,14 +1,15 @@
 import random
 
-from lcd import BLACK, WHITE, GRAY, YELLOW, CYAN, ORANGE, GREEN, RED, BLUE, PURPLE
-from core.ui import draw_header, draw_footer
+from core.display import BLACK, WHITE, GRAY, YELLOW, CYAN, ORANGE, GREEN, RED, BLUE, PURPLE
+from core.controls import A_LABEL, B_LABEL
+from core.ui import CONTENT_TOP, SCREEN_W, draw_header, draw_footer_actions
 
 
 BOARD_W = 10
 BOARD_H = 12
-CELL = 5
-BOARD_X = 22
-BOARD_Y = 10
+CELL = 12
+BOARD_X = 14
+BOARD_Y = CONTENT_TOP + 20
 
 SHAPES = [
     [
@@ -169,13 +170,13 @@ class TetrisApp:
         lcd.fill(BLACK)
         draw_header(lcd, "Tetris", "L" + str(self.lines), PURPLE)
 
-        lcd.rect(BOARD_X - 1, BOARD_Y, BOARD_W * CELL + 2, BOARD_H * CELL, WHITE)
+        lcd.rect(BOARD_X - 1, BOARD_Y - 1, BOARD_W * CELL + 2, BOARD_H * CELL + 2, WHITE)
         for y in range(BOARD_H):
             for x in range(BOARD_W):
                 px = BOARD_X + (x * CELL)
                 py = BOARD_Y + (y * CELL)
                 color = self.board[y][x] if self.board[y][x] else BLACK
-                lcd.fill_rect(px, py, CELL - 1, CELL - 1, color)
+                lcd.fill_rect(px, py, CELL - 2, CELL - 2, color)
                 if not color:
                     lcd.rect(px, py, CELL, CELL, GRAY)
 
@@ -186,23 +187,23 @@ class TetrisApp:
                 y = self.current["y"] + oy
                 px = BOARD_X + (x * CELL)
                 py = BOARD_Y + (y * CELL)
-                lcd.fill_rect(px, py, CELL - 1, CELL - 1, color)
+                lcd.fill_rect(px, py, CELL - 2, CELL - 2, color)
 
-        lcd.text("Next", 92, 18, WHITE)
+        preview_x = BOARD_X + (BOARD_W * CELL) + 18
+        lcd.text("Next", preview_x, CONTENT_TOP + 12, WHITE)
         preview = SHAPES[self.next_index][0]
         for ox, oy in preview:
-            px = 98 + (ox * 5)
-            py = 30 + (oy * 5)
-            lcd.fill_rect(px, py, 4, 4, COLORS[self.next_index])
+            px = preview_x + 10 + (ox * 10)
+            py = CONTENT_TOP + 36 + (oy * 10)
+            lcd.fill_rect(px, py, 8, 8, COLORS[self.next_index])
 
         if self.state == "lost":
-            lcd.text("LOCKED", 92, 48, RED)
+            lcd.text("LOCKED", preview_x, CONTENT_TOP + 86, RED)
 
         if self.state == "playing":
-            draw_footer(lcd, "A rotate", GRAY)
-            lcd.text("B drop", 64, 71, GRAY)
+            draw_footer_actions(lcd, A_LABEL + " rotate", B_LABEL + " drop", GRAY)
         else:
-            draw_footer(lcd, "A restart", RED)
+            draw_footer_actions(lcd, A_LABEL + " restart", "", RED)
 
     def step(self, runtime):
         buttons = runtime.buttons

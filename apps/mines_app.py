@@ -1,16 +1,17 @@
 import random
 import time
 
-from lcd import BLACK, WHITE, GRAY, YELLOW, GREEN, RED, CYAN, BLUE, ORANGE, SLATE, DKGRN
-from core.ui import draw_header, draw_footer
+from core.display import BLACK, WHITE, GRAY, YELLOW, GREEN, RED, CYAN, BLUE, ORANGE, SLATE, DKGRN
+from core.controls import A_LABEL, B_LABEL
+from core.ui import CONTENT_TOP, SCREEN_W, draw_header, draw_footer_actions
 
 
 GRID_W = 8
 GRID_H = 5
-CELL_W = 16
-CELL_H = 12
-GRID_X = 16
-GRID_Y = 10
+CELL_W = 26
+CELL_H = 28
+GRID_X = (SCREEN_W - (GRID_W * CELL_W)) // 2
+GRID_Y = CONTENT_TOP + 14
 MINE_COUNT = 7
 
 COUNT_COLORS = {
@@ -151,9 +152,11 @@ class MinesApp:
                 lcd.rect(px, py, CELL_W, CELL_H, border)
 
                 if self.flagged[y][x] and not revealed:
-                    lcd.vline(px + 5, py + 3, 6, WHITE)
-                    lcd.fill_rect(px + 6, py + 3, 4, 3, RED)
-                    lcd.hline(px + 3, py + 9, 7, WHITE)
+                    mid_x = px + (CELL_W // 2)
+                    mid_y = py + (CELL_H // 2)
+                    lcd.vline(mid_x - 3, mid_y - 7, 12, WHITE)
+                    lcd.fill_rect(mid_x - 2, mid_y - 7, 8, 5, RED)
+                    lcd.hline(mid_x - 6, mid_y + 6, 12, WHITE)
                     continue
 
                 if not revealed:
@@ -161,11 +164,13 @@ class MinesApp:
 
                 value = self.board[y][x]
                 if value == -1:
-                    lcd.ellipse(px + 8, py + 6, 3, 3, BLACK, True)
-                    lcd.hline(px + 3, py + 6, 10, WHITE)
-                    lcd.vline(px + 8, py + 1, 10, WHITE)
+                    mid_x = px + (CELL_W // 2)
+                    mid_y = py + (CELL_H // 2)
+                    lcd.ellipse(mid_x, mid_y, 6, 6, BLACK, True)
+                    lcd.hline(mid_x - 8, mid_y, 16, WHITE)
+                    lcd.vline(mid_x, mid_y - 8, 16, WHITE)
                 elif value > 0:
-                    lcd.text(str(value), px + 4, py + 2, COUNT_COLORS.get(value, WHITE))
+                    lcd.text(str(value), px + (CELL_W // 2) - 4, py + (CELL_H // 2) - 4, COUNT_COLORS.get(value, WHITE))
 
     def step(self, runtime):
         buttons = runtime.buttons
@@ -194,10 +199,9 @@ class MinesApp:
         self.draw_grid(lcd)
 
         if self.state == "won":
-            draw_footer(lcd, "Cleared! A new", CYAN)
+            draw_footer_actions(lcd, "Cleared", A_LABEL + " new", CYAN)
         elif self.state == "lost":
-            draw_footer(lcd, "Boom. A retry", RED)
+            draw_footer_actions(lcd, "Boom", A_LABEL + " retry", RED)
         else:
-            draw_footer(lcd, "B dig", GRAY)
-            lcd.text("A flag", 80, 71, GRAY)
+            draw_footer_actions(lcd, B_LABEL + " dig", A_LABEL + " flag", GRAY)
         return None

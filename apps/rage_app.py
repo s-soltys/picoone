@@ -1,11 +1,15 @@
 import random
 
-from lcd import BLACK, WHITE, GRAY, YELLOW, ORANGE, RED, CYAN, GREEN, BLUE, SLATE, BROWN, DKRED
-from core.ui import draw_header, draw_footer
+from core.display import BLACK, WHITE, GRAY, YELLOW, ORANGE, RED, CYAN, GREEN, BLUE, SLATE, BROWN, DKRED
+from core.controls import A_LABEL, B_LABEL
+from core.ui import CONTENT_TOP, CONTENT_BOTTOM, SCREEN_W, draw_header, draw_footer_actions
 
 
-PLAY_TOP = 10
-PLAY_BOTTOM = 69
+PLAY_TOP = CONTENT_TOP + 6
+PLAY_BOTTOM = CONTENT_BOTTOM - 6
+LANES = [PLAY_TOP + 96, PLAY_TOP + 112, PLAY_TOP + 128, PLAY_TOP + 144]
+PLAYER_MIN_Y = LANES[0] - 10
+PLAYER_MAX_Y = LANES[-1] + 4
 PLAYER_HP = 6
 MAX_WAVES = 3
 
@@ -24,8 +28,8 @@ class RageApp:
     accent = ORANGE
 
     def __init__(self):
-        self.player_x = 28
-        self.player_y = 52
+        self.player_x = 36
+        self.player_y = LANES[2]
         self.player_hp = PLAYER_HP
         self.facing = 1
         self.attack_timer = 0
@@ -54,8 +58,8 @@ class RageApp:
         self.reset_game()
 
     def reset_game(self):
-        self.player_x = 28
-        self.player_y = 52
+        self.player_x = 36
+        self.player_y = LANES[2]
         self.player_hp = PLAYER_HP
         self.facing = 1
         self.attack_timer = 0
@@ -74,12 +78,11 @@ class RageApp:
     def spawn_wave(self):
         self.enemies = []
         count = self.wave
-        base_x = 94
-        lanes = [38, 44, 50, 56]
+        base_x = SCREEN_W - 72
         for index in range(count):
             self.enemies.append({
                 "x": base_x + (index * 18),
-                "y": lanes[(index + self.wave) % len(lanes)],
+                "y": LANES[(index + self.wave) % len(LANES)],
                 "hp": 2 + (self.wave // 2),
                 "flash": 0,
                 "stun": 0,
@@ -162,11 +165,11 @@ class RageApp:
             move_x += 2
             self.facing = 1
         if buttons.down("UP"):
-            self.player_y = max(28, self.player_y - 2)
+            self.player_y = max(PLAYER_MIN_Y, self.player_y - 2)
         if buttons.down("DOWN"):
-            self.player_y = min(60, self.player_y + 2)
+            self.player_y = min(PLAYER_MAX_Y, self.player_y + 2)
 
-        self.player_x = min(142, max(18, self.player_x + move_x))
+        self.player_x = min(SCREEN_W - 18, max(18, self.player_x + move_x))
         self.scroll = (self.scroll + move_x) % 32
 
         if buttons.pressed("B") and self.attack_timer == 0:
@@ -204,24 +207,28 @@ class RageApp:
                 self.spawn_wave()
 
     def draw_background(self, lcd):
-        lcd.fill_rect(0, PLAY_TOP, 160, 14, SLATE)
-        for base in range(-16, 176, 24):
+        sky_h = 36
+        building_h = 30
+        street_y = PLAY_TOP + sky_h + building_h
+
+        lcd.fill_rect(0, PLAY_TOP, SCREEN_W, sky_h, SLATE)
+        for base in range(-16, SCREEN_W + 48, 24):
             bx = base - (self.scroll // 2)
             while bx < -16:
-                bx += 192
-            lcd.rect(bx, PLAY_TOP + 2, 14, 10, GRAY)
-            lcd.fill_rect(bx + 3, PLAY_TOP + 4, 2, 2, YELLOW)
-            lcd.fill_rect(bx + 8, PLAY_TOP + 4, 2, 2, YELLOW)
+                bx += SCREEN_W + 32
+            lcd.rect(bx, PLAY_TOP + 6, 14, 14, GRAY)
+            lcd.fill_rect(bx + 3, PLAY_TOP + 10, 2, 3, YELLOW)
+            lcd.fill_rect(bx + 8, PLAY_TOP + 10, 2, 3, YELLOW)
 
-        lcd.fill_rect(0, PLAY_TOP + 14, 160, 18, BLUE)
-        lcd.hline(0, PLAY_TOP + 14, 160, CYAN)
-        lcd.hline(0, PLAY_TOP + 31, 160, WHITE)
-        lcd.fill_rect(0, PLAY_TOP + 32, 160, 27, BROWN)
-        for stripe in range(-20, 190, 28):
+        lcd.fill_rect(0, PLAY_TOP + sky_h, SCREEN_W, building_h, BLUE)
+        lcd.hline(0, PLAY_TOP + sky_h, SCREEN_W, CYAN)
+        lcd.hline(0, street_y - 1, SCREEN_W, WHITE)
+        lcd.fill_rect(0, street_y, SCREEN_W, PLAY_BOTTOM - street_y, BROWN)
+        for stripe in range(-20, SCREEN_W + 40, 28):
             sx = stripe - self.scroll
             while sx < -20:
-                sx += 224
-            lcd.fill_rect(sx, PLAY_TOP + 45, 10, 2, YELLOW)
+                sx += SCREEN_W + 64
+            lcd.fill_rect(sx, PLAY_BOTTOM - 28, 10, 3, YELLOW)
 
     def draw_fighter(self, lcd, x, y, body, accent, attacking, hit, facing):
         shade = WHITE if hit else accent
@@ -278,22 +285,20 @@ class RageApp:
             color = RED if hp < self.player_hp else GRAY
             lcd.fill_rect(4 + (hp * 8), 12, 6, 4, color)
 
-        lcd.text("E" + str(len(self.enemies)), 118, 12, WHITE)
-        lcd.text("K" + str(self.score), 138, 12, WHITE)
+        lcd.text("E" + str(len(self.enemies)), SCREEN_W - 64, CONTENT_TOP - 12, WHITE)
+        lcd.text("K" + str(self.score), SCREEN_W - 34, CONTENT_TOP - 12, WHITE)
 
         if self.message_timer > 0 or self.state != "playing":
             text = self.message
-            x = max(2, (160 - len(text) * 8) // 2)
-            lcd.fill_rect(0, 30, 160, 12, BLACK)
-            lcd.text(text, x, 32, YELLOW)
+            x = max(2, (SCREEN_W - len(text) * 8) // 2)
+            lcd.fill_rect(0, PLAY_TOP + 58, SCREEN_W, 16, BLACK)
+            lcd.text(text, x, PLAY_TOP + 62, YELLOW)
 
         if self.state == "playing":
-            footer = "B punch"
+            footer = B_LABEL + " punch"
         else:
-            footer = "A restart"
-        draw_footer(lcd, footer, GRAY)
-        if self.state == "playing":
-            lcd.text("A spin", 88, 71, GRAY)
+            footer = A_LABEL + " restart"
+        draw_footer_actions(lcd, footer, A_LABEL + " spin" if self.state == "playing" else "", GRAY)
 
     def step(self, runtime):
         buttons = runtime.buttons

@@ -2,7 +2,11 @@ from machine import Pin, SPI, PWM
 import framebuf
 import time
 
-# colors are BGR565 byte-swapped
+
+SCREEN_W = 240
+SCREEN_H = 240
+
+# colors are BGR565 byte-swapped so raw framebuf bytes display correctly
 RED = 0x00F8
 GREEN = 0xE007
 BLUE = 0x1F00
@@ -30,171 +34,166 @@ MAROON = 0x0060
 COPPER = 0xA0CA
 SAND = 0x4BCD
 
-class LCD_0inch96(framebuf.FrameBuffer):
+
+class PicoLCD13(framebuf.FrameBuffer):
     def __init__(self):
-    
-        self.width = 160
-        self.height = 80
-        
-        self.cs = Pin(9,Pin.OUT)
-        self.rst = Pin(12,Pin.OUT)
+        self.width = SCREEN_W
+        self.height = SCREEN_H
+
+        self.cs = Pin(9, Pin.OUT)
+        self.rst = Pin(12, Pin.OUT)
+        self.dc = Pin(8, Pin.OUT)
         self.cs(1)
-        self.spi = SPI(1)
-        self.spi = SPI(1,1000_000)
-        self.spi = SPI(1,10000_000,polarity=0, phase=0,sck=Pin(10),mosi=Pin(11),miso=None)
-        self.dc = Pin(8,Pin.OUT)
         self.dc(1)
+
+        self.spi = SPI(
+            1,
+            20_000_000,
+            polarity=0,
+            phase=0,
+            sck=Pin(10),
+            mosi=Pin(11),
+            miso=None,
+        )
+        self.backlight_pwm = PWM(Pin(13))
+        self.backlight_pwm.freq(1000)
+
         self.buffer = bytearray(self.height * self.width * 2)
         super().__init__(self.buffer, self.width, self.height, framebuf.RGB565)
-        self.Init()
-        self.SetWindows(0, 0, self.width-1, self.height-1)
-        
-    def reset(self):
+
+        self._init_display()
+        self.backlight(1000)
+        self.fill(BLACK)
+        self.display()
+
+    def _reset(self):
         self.rst(1)
-        time.sleep(0.2) 
+        time.sleep(0.12)
         self.rst(0)
-        time.sleep(0.2)         
+        time.sleep(0.12)
         self.rst(1)
-        time.sleep(0.2) 
-        
+        time.sleep(0.12)
+
     def write_cmd(self, cmd):
         self.dc(0)
         self.cs(0)
         self.spi.write(bytearray([cmd]))
-
-    def write_data(self, buf):
-        self.dc(1)
-        self.cs(0)
-        self.spi.write(bytearray([buf]))
         self.cs(1)
 
-    def backlight(self,value):
-        pwm = PWM(Pin(13))
-        pwm.freq(1000)
-        if value>=1000:
-            value=1000
-        data=int(value*65536/1000)       
-        pwm.duty_u16(data)  
-        
-    def Init(self):
-        self.reset() 
-        self.backlight(10000)  
-        
-        self.write_cmd(0x11)
-        time.sleep(0.12)
-        self.write_cmd(0x21) 
-        self.write_cmd(0x21) 
+    def write_data(self, data):
+        self.dc(1)
+        self.cs(0)
+        if isinstance(data, int):
+            self.spi.write(bytearray([data]))
+        else:
+            self.spi.write(data)
+        self.cs(1)
 
-        self.write_cmd(0xB1) 
-        self.write_data(0x05)
-        self.write_data(0x3A)
-        self.write_data(0x3A)
+    def backlight(self, value):
+        value = max(0, min(1000, value))
+        duty = int(value * 65535 / 1000)
+        self.backlight_pwm.duty_u16(duty)
 
-        self.write_cmd(0xB2)
-        self.write_data(0x05)
-        self.write_data(0x3A)
-        self.write_data(0x3A)
-
-        self.write_cmd(0xB3) 
-        self.write_data(0x05)  
-        self.write_data(0x3A)
-        self.write_data(0x3A)
-        self.write_data(0x05)
-        self.write_data(0x3A)
-        self.write_data(0x3A)
-
-        self.write_cmd(0xB4)
-        self.write_data(0x03)
-
-        self.write_cmd(0xC0)
-        self.write_data(0x62)
-        self.write_data(0x02)
-        self.write_data(0x04)
-
-        self.write_cmd(0xC1)
-        self.write_data(0xC0)
-
-        self.write_cmd(0xC2)
-        self.write_data(0x0D)
-        self.write_data(0x00)
-
-        self.write_cmd(0xC3)
-        self.write_data(0x8D)
-        self.write_data(0x6A)   
-
-        self.write_cmd(0xC4)
-        self.write_data(0x8D) 
-        self.write_data(0xEE) 
-
-        self.write_cmd(0xC5)
-        self.write_data(0x0E)    
-
-        self.write_cmd(0xE0)
-        self.write_data(0x10)
-        self.write_data(0x0E)
-        self.write_data(0x02)
-        self.write_data(0x03)
-        self.write_data(0x0E)
-        self.write_data(0x07)
-        self.write_data(0x02)
-        self.write_data(0x07)
-        self.write_data(0x0A)
-        self.write_data(0x12)
-        self.write_data(0x27)
-        self.write_data(0x37)
-        self.write_data(0x00)
-        self.write_data(0x0D)
-        self.write_data(0x0E)
-        self.write_data(0x10)
-
-        self.write_cmd(0xE1)
-        self.write_data(0x10)
-        self.write_data(0x0E)
-        self.write_data(0x03)
-        self.write_data(0x03)
-        self.write_data(0x0F)
-        self.write_data(0x06)
-        self.write_data(0x02)
-        self.write_data(0x08)
-        self.write_data(0x0A)
-        self.write_data(0x13)
-        self.write_data(0x26)
-        self.write_data(0x36)
-        self.write_data(0x00)
-        self.write_data(0x0D)
-        self.write_data(0x0E)
-        self.write_data(0x10)
-
-        self.write_cmd(0x3A) 
-        self.write_data(0x05)
+    def _init_display(self):
+        self._reset()
 
         self.write_cmd(0x36)
-        self.write_data(0xA8)
+        self.write_data(0x70)
 
-        self.write_cmd(0x29) 
-        
-    def SetWindows(self, Xstart, Ystart, Xend, Yend):
-        Xstart=Xstart+1
-        Xend=Xend+1
-        Ystart=Ystart+26
-        Yend=Yend+26
+        self.write_cmd(0x3A)
+        self.write_data(0x05)
+
+        self.write_cmd(0xB2)
+        self.write_data(bytearray([0x0C, 0x0C, 0x00, 0x33, 0x33]))
+
+        self.write_cmd(0xB7)
+        self.write_data(0x35)
+
+        self.write_cmd(0xBB)
+        self.write_data(0x19)
+
+        self.write_cmd(0xC0)
+        self.write_data(0x2C)
+
+        self.write_cmd(0xC2)
+        self.write_data(0x01)
+
+        self.write_cmd(0xC3)
+        self.write_data(0x12)
+
+        self.write_cmd(0xC4)
+        self.write_data(0x20)
+
+        self.write_cmd(0xC6)
+        self.write_data(0x0F)
+
+        self.write_cmd(0xD0)
+        self.write_data(bytearray([0xA4, 0xA1]))
+
+        self.write_cmd(0xE0)
+        self.write_data(
+            bytearray(
+                [
+                    0xD0,
+                    0x04,
+                    0x0D,
+                    0x11,
+                    0x13,
+                    0x2B,
+                    0x3F,
+                    0x54,
+                    0x4C,
+                    0x18,
+                    0x0D,
+                    0x0B,
+                    0x1F,
+                    0x23,
+                ]
+            )
+        )
+
+        self.write_cmd(0xE1)
+        self.write_data(
+            bytearray(
+                [
+                    0xD0,
+                    0x04,
+                    0x0C,
+                    0x11,
+                    0x13,
+                    0x2C,
+                    0x3F,
+                    0x44,
+                    0x51,
+                    0x2F,
+                    0x1F,
+                    0x1F,
+                    0x20,
+                    0x23,
+                ]
+            )
+        )
+
+        self.write_cmd(0x21)
+        self.write_cmd(0x11)
+        time.sleep(0.12)
+        self.write_cmd(0x29)
+        time.sleep(0.02)
+
+    def set_window(self, x0, y0, x1, y1):
         self.write_cmd(0x2A)
-        self.write_data(0x00)              
-        self.write_data(Xstart)      
-        self.write_data(0x00)              
-        self.write_data(Xend) 
-
+        self.write_data(bytearray([x0 >> 8, x0 & 0xFF, x1 >> 8, x1 & 0xFF]))
         self.write_cmd(0x2B)
-        self.write_data(0x00)
-        self.write_data(Ystart)
-        self.write_data(0x00)
-        self.write_data(Yend)
+        self.write_data(bytearray([y0 >> 8, y0 & 0xFF, y1 >> 8, y1 & 0xFF]))
+        self.write_cmd(0x2C)
 
-        self.write_cmd(0x2C) 
-        
     def display(self):
-        self.SetWindows(0,0,self.width-1,self.height-1)       
+        self.set_window(0, 0, self.width - 1, self.height - 1)
         self.dc(1)
         self.cs(0)
         self.spi.write(self.buffer)
-        self.cs(1)        
+        self.cs(1)
+
+
+LCD = PicoLCD13
+LCD_0inch96 = PicoLCD13

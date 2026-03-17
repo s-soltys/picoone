@@ -1,10 +1,11 @@
-from lcd import BLACK, WHITE, GRAY, YELLOW, RED, GREEN, BLUE, CYAN, ORANGE, PURPLE
-from core.ui import draw_header, draw_footer
+from core.display import BLACK, WHITE, GRAY, YELLOW, RED, GREEN, BLUE, CYAN, ORANGE, PURPLE
+from core.controls import A_LABEL, B_LABEL
+from core.ui import CONTENT_TOP, SCREEN_W, draw_header, draw_footer_actions
 
 
 CANVAS_W = 14
 CANVAS_H = 6
-CELL = 10
+CELL = 15
 PALETTE = [WHITE, BLACK, RED, GREEN, BLUE, CYAN, YELLOW, ORANGE, PURPLE]
 
 
@@ -40,26 +41,29 @@ class PaintApp:
         self.color_index = 1
 
     def draw_scene(self, lcd):
+        canvas_x = 4
+        canvas_y = CONTENT_TOP + 18
+        palette_x = SCREEN_W - 22
+        palette_h = 18
+
         lcd.fill(WHITE)
         draw_header(lcd, "Paint", "C" + str(self.color_index + 1), ORANGE)
 
         for y in range(CANVAS_H):
             for x in range(CANVAS_W):
-                px = x * CELL
-                py = 10 + (y * CELL)
+                px = canvas_x + (x * CELL)
+                py = canvas_y + (y * CELL)
                 lcd.fill_rect(px, py, CELL, CELL, self.canvas[y][x])
                 lcd.rect(px, py, CELL, CELL, GRAY)
                 if x == self.cursor_x and y == self.cursor_y:
                     lcd.rect(px + 1, py + 1, CELL - 2, CELL - 2, BLACK)
 
-        palette_x = 141
         for index in range(len(PALETTE)):
-            py = 11 + (index * 7)
-            lcd.fill_rect(palette_x, py, 16, 6, PALETTE[index])
-            lcd.rect(palette_x, py, 16, 6, BLACK if index == self.color_index else GRAY)
+            py = CONTENT_TOP + 8 + (index * (palette_h + 3))
+            lcd.fill_rect(palette_x, py, 18, palette_h, PALETTE[index])
+            lcd.rect(palette_x, py, 18, palette_h, BLACK if index == self.color_index else GRAY)
 
-        draw_footer(lcd, "A color", WHITE)
-        lcd.text("B paint", 78, 71, WHITE)
+        draw_footer_actions(lcd, A_LABEL + " color", B_LABEL + " paint", WHITE)
 
     def step(self, runtime):
         buttons = runtime.buttons

@@ -1,7 +1,8 @@
 import time
 
-from lcd import BLACK, WHITE, CYAN, YELLOW, GREEN, GRAY, ORANGE, RED, SLATE
-from core.ui import draw_header, draw_footer, fit_text, HOME_HINT
+from core.display import BLACK, WHITE, CYAN, YELLOW, GREEN, GRAY, ORANGE, RED, SLATE
+from core.controls import A_LABEL, B_LABEL
+from core.ui import CONTENT_TOP, SCREEN_W, draw_header, draw_footer_actions, fit_text, HOME_HINT
 
 
 KEYBOARD_PAGES = [
@@ -23,10 +24,10 @@ KEY_LABELS = {
 }
 
 KEYBOARD_NOTE = "Pick 123/ABC/!?"
-WIFI_LIST_ROWS = 4
-WIFI_NAME_X = 12
-WIFI_MARKER_X = 150
-WIFI_NAME_CHARS = 17
+WIFI_LIST_ROWS = 9
+WIFI_NAME_X = 16
+WIFI_MARKER_X = SCREEN_W - 16
+WIFI_NAME_CHARS = 24
 MARQUEE_HOLD_STEPS = 4
 MARQUEE_STEP_MS = 180
 
@@ -249,50 +250,50 @@ class WiFiStatusApp:
     def _draw_status(self, lcd, runtime):
         status = runtime.wifi.status()
         detail = "LINK" if status["connected"] else ("JOIN" if status.get("connecting") else ("READY" if status["active"] else "OFF"))
+        card_y = CONTENT_TOP + 116
 
         lcd.fill(BLACK)
         draw_header(lcd, "Wi-Fi", detail, GREEN)
 
         if not status["supported"]:
-            lcd.text("No network", 4, 18, ORANGE)
-            lcd.text("module here", 4, 30, WHITE)
-            draw_footer(lcd, HOME_HINT)
+            lcd.text("No network", 4, CONTENT_TOP + 14, ORANGE)
+            lcd.text("module here", 4, CONTENT_TOP + 34, WHITE)
+            draw_footer_actions(lcd, HOME_HINT)
             return
 
         if status["connected"]:
             ssid = status["ssid"] or "connected"
             ifconfig = status["ifconfig"] or ("ip ?", "mask ?", "gw ?", "dns ?")
-            lcd.text(self._marquee_text(ssid, 19, ("status", ssid)), 4, 12, CYAN)
-            lcd.text(fit_text("IP " + ifconfig[0], 19), 4, 22, WHITE)
-            lcd.text(fit_text("MASK " + ifconfig[1], 19), 4, 32, WHITE)
-            lcd.text(fit_text("GW " + ifconfig[2], 19), 4, 42, WHITE)
-            lcd.text(fit_text("DNS " + ifconfig[3], 19), 4, 52, GRAY)
+            lcd.text(self._marquee_text(ssid, 26, ("status", ssid)), 4, CONTENT_TOP + 6, CYAN)
+            lcd.text(fit_text("IP " + ifconfig[0], 28), 4, CONTENT_TOP + 28, WHITE)
+            lcd.text(fit_text("MASK " + ifconfig[1], 28), 4, CONTENT_TOP + 50, WHITE)
+            lcd.text(fit_text("GW " + ifconfig[2], 28), 4, CONTENT_TOP + 72, WHITE)
+            lcd.text(fit_text("DNS " + ifconfig[3], 28), 4, CONTENT_TOP + 94, GRAY)
             action = "Join another"
         elif status.get("connecting"):
             target = status.get("target") or "saved network"
-            lcd.text("Restoring Wi-Fi", 4, 12, CYAN)
-            lcd.text(fit_text(target, 18), 4, 22, WHITE)
-            lcd.text("Saved profile", 4, 42, WHITE)
-            lcd.text("Please wait", 4, 52, GRAY)
+            lcd.text("Restoring Wi-Fi", 4, CONTENT_TOP + 6, CYAN)
+            lcd.text(fit_text(target, 28), 4, CONTENT_TOP + 28, WHITE)
+            lcd.text("Saved profile", 4, CONTENT_TOP + 72, WHITE)
+            lcd.text("Please wait", 4, CONTENT_TOP + 94, GRAY)
             action = "Join network"
         elif status["active"]:
-            lcd.text("Not connected", 4, 12, ORANGE)
-            lcd.text("Radio active", 4, 22, CYAN)
-            lcd.text("Open a scan to", 4, 42, WHITE)
-            lcd.text("pick a network", 4, 52, GRAY)
+            lcd.text("Not connected", 4, CONTENT_TOP + 6, ORANGE)
+            lcd.text("Radio active", 4, CONTENT_TOP + 28, CYAN)
+            lcd.text("Open a scan to", 4, CONTENT_TOP + 72, WHITE)
+            lcd.text("pick a network", 4, CONTENT_TOP + 94, GRAY)
             action = "Join network"
         else:
-            lcd.text("Not connected", 4, 12, ORANGE)
-            lcd.text("Radio off", 4, 22, ORANGE)
-            lcd.text("Opening scan", 4, 42, WHITE)
-            lcd.text("will wake Wi-Fi", 4, 52, GRAY)
+            lcd.text("Not connected", 4, CONTENT_TOP + 6, ORANGE)
+            lcd.text("Radio off", 4, CONTENT_TOP + 28, ORANGE)
+            lcd.text("Opening scan", 4, CONTENT_TOP + 72, WHITE)
+            lcd.text("will wake Wi-Fi", 4, CONTENT_TOP + 94, GRAY)
             action = "Join network"
 
-        lcd.fill_rect(0, 60, 160, 10, SLATE)
-        lcd.text(">", 2, 61, WHITE)
-        lcd.text(fit_text(action, WIFI_NAME_CHARS), WIFI_NAME_X, 61, WHITE)
-        draw_footer(lcd, HOME_HINT)
-        lcd.text("B open", 110, 71, GRAY)
+        lcd.fill_rect(0, card_y, SCREEN_W, 20, SLATE)
+        lcd.text(">", 4, card_y + 6, WHITE)
+        lcd.text(fit_text(action, WIFI_NAME_CHARS), WIFI_NAME_X, card_y + 6, WHITE)
+        draw_footer_actions(lcd, HOME_HINT, B_LABEL + " open", GRAY)
 
     def _draw_list(self, lcd, runtime):
         status = runtime.wifi.status()
@@ -305,49 +306,49 @@ class WiFiStatusApp:
         draw_header(lcd, "Wi-Fi", detail, GREEN)
 
         if not status["supported"]:
-            lcd.text("No network", 4, 18, ORANGE)
-            lcd.text("module here", 4, 30, WHITE)
-            draw_footer(lcd, HOME_HINT)
+            lcd.text("No network", 4, CONTENT_TOP + 14, ORANGE)
+            lcd.text("module here", 4, CONTENT_TOP + 34, WHITE)
+            draw_footer_actions(lcd, HOME_HINT)
             return
 
         if status["connected"]:
             ssid = status["ssid"] or "connected"
-            lcd.text(fit_text(ssid, 18), 4, 12, CYAN)
+            lcd.text(fit_text(ssid, 28), 4, CONTENT_TOP + 4, CYAN)
             ip = status["ifconfig"][0] if status["ifconfig"] else "ip ?"
-            lcd.text(fit_text(ip, 18), 4, 22, WHITE)
+            lcd.text(fit_text(ip, 28), 4, CONTENT_TOP + 24, WHITE)
         elif status["active"]:
-            lcd.text("Radio active", 4, 12, CYAN)
-            lcd.text("Choose a network", 4, 22, WHITE)
+            lcd.text("Radio active", 4, CONTENT_TOP + 4, CYAN)
+            lcd.text("Choose a network", 4, CONTENT_TOP + 24, WHITE)
         else:
-            lcd.text("Radio off", 4, 12, ORANGE)
-            lcd.text("Scan woke radio", 4, 22, WHITE)
+            lcd.text("Radio off", 4, CONTENT_TOP + 4, ORANGE)
+            lcd.text("Scan woke radio", 4, CONTENT_TOP + 24, WHITE)
 
         if chosen:
             saved = self._has_saved_profile(chosen)
             if chosen["hidden"]:
-                lcd.text("Hidden SSID", 4, 22, ORANGE)
+                lcd.text("Hidden SSID", 4, CONTENT_TOP + 24, ORANGE)
             elif self._secure_network(chosen):
-                lcd.text("Saved pass" if saved else "Need password", 4, 22, WHITE)
+                lcd.text("Saved pass" if saved else "Need password", 4, CONTENT_TOP + 24, WHITE)
             else:
-                lcd.text("Saved open" if saved else "Open network", 4, 22, WHITE)
+                lcd.text("Saved open" if saved else "Open network", 4, CONTENT_TOP + 24, WHITE)
 
         if self.error:
-            lcd.text(fit_text(self.error, 18), 4, 34, ORANGE)
-            draw_footer(lcd, "A status")
+            lcd.text(fit_text(self.error, 28), 4, CONTENT_TOP + 46, ORANGE)
+            draw_footer_actions(lcd, A_LABEL + " status")
             return
 
         if not self.results:
-            lcd.text("No SSIDs found", 4, 34, GRAY)
-            draw_footer(lcd, "A status")
+            lcd.text("No SSIDs found", 4, CONTENT_TOP + 46, GRAY)
+            draw_footer_actions(lcd, A_LABEL + " status")
             return
 
-        y = 34
+        y = CONTENT_TOP + 48
         end = min(len(self.results), self.scroll + WIFI_LIST_ROWS)
         for index in range(self.scroll, end):
             item = self.results[index]
             selected = index == self.selected
             if selected:
-                lcd.fill_rect(0, y - 1, 160, 10, GRAY)
+                lcd.fill_rect(0, y - 2, SCREEN_W, 14, GRAY)
 
             prefix = ">" if selected else " "
             text_color = BLACK if selected else WHITE
@@ -356,23 +357,26 @@ class WiFiStatusApp:
 
             marker = "S" if self._has_saved_profile(item) else ("O" if not self._secure_network(item) else "*")
             lcd.text(marker, WIFI_MARKER_X, y, BLACK if selected else CYAN)
-            y += 10
+            y += 14
 
-        draw_footer(lcd, "A status", GRAY)
-        lcd.text("B join", 86, 71, GRAY)
+        draw_footer_actions(lcd, A_LABEL + " status", B_LABEL + " join", GRAY)
 
     def _draw_keyboard(self, lcd):
         page_name = KEYBOARD_PAGES[self.keyboard_page][0]
+        slot_w = 40
+        slot_gap = 6
+        slot_x0 = 5
+        slot_y = CONTENT_TOP + 116
         lcd.fill(BLACK)
         draw_header(lcd, "Password", page_name, GREEN)
 
         ssid = self.current_network["ssid"] if self.current_network else "network"
-        lcd.text(fit_text(ssid, 18), 4, 12, CYAN)
-        lcd.text("Pass", 4, 24, WHITE)
+        lcd.text(fit_text(ssid, 28), 4, CONTENT_TOP + 4, CYAN)
+        lcd.text("Pass", 4, CONTENT_TOP + 30, WHITE)
         buffer_text = self.password_buffer if self.password_buffer else "_"
-        lcd.text(fit_text(buffer_text[-18:], 18), 4, 34, YELLOW if self.password_buffer else GRAY)
+        lcd.text(fit_text(buffer_text[-28:], 28), 4, CONTENT_TOP + 52, YELLOW if self.password_buffer else GRAY)
         note_color = GRAY if self.keyboard_note == KEYBOARD_NOTE else ORANGE
-        lcd.text(fit_text(self.keyboard_note, 18), 4, 44, note_color)
+        lcd.text(fit_text(self.keyboard_note, 28), 4, CONTENT_TOP + 76, note_color)
 
         tokens = self._keyboard_tokens()
         for slot in range(5):
@@ -380,28 +384,27 @@ class WiFiStatusApp:
             token_index = (self.keyboard_index + offset) % len(tokens)
             token = tokens[token_index]
             label = KEY_LABELS.get(token, token)
-            x = 4 + (slot * 31)
+            x = slot_x0 + (slot * (slot_w + slot_gap))
             selected = offset == 0
             fill = SLATE if selected else BLACK
             border = YELLOW if selected else GRAY
             text_color = BLACK if selected else WHITE
-            lcd.fill_rect(x, 50, 28, 14, fill)
-            lcd.rect(x, 50, 28, 14, border)
-            tx = x + max(1, (28 - (len(label) * 8)) // 2)
-            lcd.text(label, tx, 53, text_color)
+            lcd.fill_rect(x, slot_y, slot_w, 22, fill)
+            lcd.rect(x, slot_y, slot_w, 22, border)
+            tx = x + max(1, (slot_w - (len(label) * 8)) // 2)
+            lcd.text(label, tx, slot_y + 7, text_color)
 
-        draw_footer(lcd, "A next", GRAY)
-        lcd.text("B pick", 66, 71, GRAY)
+        draw_footer_actions(lcd, A_LABEL + " next", B_LABEL + " pick", GRAY)
 
     def _draw_connecting(self, lcd):
         dots = "." * ((time.ticks_ms() // 250) % 4)
         lcd.fill(BLACK)
         draw_header(lcd, "Joining", color=GREEN)
         ssid = self.current_network["ssid"] if self.current_network else "network"
-        lcd.text(fit_text(ssid, 18), 4, 18, CYAN)
-        lcd.text("Connecting" + dots, 4, 34, WHITE)
-        lcd.text("Please wait", 4, 48, GRAY)
-        draw_footer(lcd, HOME_HINT)
+        lcd.text(fit_text(ssid, 28), 4, CONTENT_TOP + 16, CYAN)
+        lcd.text("Connecting" + dots, 4, CONTENT_TOP + 54, WHITE)
+        lcd.text("Please wait", 4, CONTENT_TOP + 80, GRAY)
+        draw_footer_actions(lcd, HOME_HINT)
 
     def _draw_result(self, lcd):
         ok = self.result and self.result["ok"]
@@ -411,25 +414,22 @@ class WiFiStatusApp:
         draw_header(lcd, title, color=header_color)
 
         ssid = self.current_network["ssid"] if self.current_network else "network"
-        lcd.text(fit_text(ssid, 18), 4, 16, CYAN)
+        lcd.text(fit_text(ssid, 28), 4, CONTENT_TOP + 10, CYAN)
 
         if ok:
             ip = self.result["ifconfig"][0] if self.result["ifconfig"] else "ip ?"
-            lcd.text(fit_text(ip, 18), 4, 30, WHITE)
+            lcd.text(fit_text(ip, 28), 4, CONTENT_TOP + 42, WHITE)
             if self.connect_remember and self.connect_password:
-                lcd.text("Password saved", 4, 44, GRAY)
-            draw_footer(lcd, "A status", GREEN)
-            lcd.text("B nets", 94, 71, GREEN)
+                lcd.text("Password saved", 4, CONTENT_TOP + 74, GRAY)
+            draw_footer_actions(lcd, A_LABEL + " status", B_LABEL + " nets", GREEN)
         else:
             error = self.result["error"] if self.result else "connection failed"
-            lcd.text(fit_text(error, 18), 4, 30, ORANGE)
+            lcd.text(fit_text(error, 28), 4, CONTENT_TOP + 42, ORANGE)
             if self._secure_network(self.current_network):
-                lcd.text("B edit pass", 4, 44, GRAY)
-                draw_footer(lcd, "A status", RED)
-                lcd.text("B edit", 88, 71, RED)
+                lcd.text(B_LABEL + " edit pass", 4, CONTENT_TOP + 74, GRAY)
+                draw_footer_actions(lcd, A_LABEL + " status", B_LABEL + " edit", RED)
             else:
-                draw_footer(lcd, "A status", RED)
-                lcd.text("B retry", 80, 71, RED)
+                draw_footer_actions(lcd, A_LABEL + " status", B_LABEL + " retry", RED)
 
     def _step_status(self, runtime):
         if runtime.buttons.pressed("B") and runtime.wifi.supported():

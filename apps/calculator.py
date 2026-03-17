@@ -1,5 +1,6 @@
-from lcd import BLACK, WHITE, CYAN, YELLOW, GRAY, GREEN, ORANGE, SLATE
-from core.ui import draw_header, draw_footer, fit_text
+from core.display import BLACK, WHITE, CYAN, YELLOW, GRAY, GREEN, ORANGE, SLATE
+from core.controls import A_LABEL, B_LABEL
+from core.ui import CONTENT_TOP, SCREEN_W, draw_header, draw_footer_actions, fit_text
 
 
 OPS = "+-*/"
@@ -130,6 +131,11 @@ class CalculatorApp:
     def step(self, runtime):
         buttons = runtime.buttons
         lcd = runtime.lcd
+        key_gap = 6
+        key_w = (SCREEN_W - 10 - (key_gap * 3)) // 4
+        key_h = 28
+        key_x0 = 5
+        key_y0 = CONTENT_TOP + 58
 
         if buttons.repeat("LEFT"):
             self.cursor_x = max(0, self.cursor_x - 1)
@@ -148,23 +154,22 @@ class CalculatorApp:
         draw_header(lcd, "Calculator", color=ORANGE)
 
         display_expr = self.expression or "0"
-        lcd.text(fit_text(display_expr, 19), 4, 14, WHITE)
+        lcd.text(fit_text(display_expr, 28), 4, CONTENT_TOP + 8, WHITE)
         if self.error:
-            lcd.text(fit_text(self.error, 19), 4, 24, YELLOW)
+            lcd.text(fit_text(self.error, 28), 4, CONTENT_TOP + 26, YELLOW)
         else:
-            result = self.result if self.result else "B = eval"
-            lcd.text(fit_text(result, 19), 4, 24, CYAN)
+            result = self.result if self.result else B_LABEL + " eval"
+            lcd.text(fit_text(result, 28), 4, CONTENT_TOP + 26, CYAN)
 
         for row in range(4):
             for col in range(4):
-                x = 1 + (col * 40)
-                y = 36 + (row * 11)
+                x = key_x0 + (col * (key_w + key_gap))
+                y = key_y0 + (row * (key_h + 8))
                 key = KEYPAD[row][col]
                 selected = row == self.cursor_y and col == self.cursor_x
-                lcd.fill_rect(x, y, 38, 10, SLATE if selected else BLACK)
-                lcd.rect(x, y, 38, 10, YELLOW if selected else GRAY)
-                lcd.text(key, x + 15, y + 1, ORANGE if selected else GREEN)
+                lcd.fill_rect(x, y, key_w, key_h, SLATE if selected else BLACK)
+                lcd.rect(x, y, key_w, key_h, YELLOW if selected else GRAY)
+                lcd.text(key, x + max(2, (key_w - 8) // 2), y + 10, ORANGE if selected else GREEN)
 
-        draw_footer(lcd, "A del", GRAY)
-        lcd.text("B pick", 80, 71, GRAY)
+        draw_footer_actions(lcd, A_LABEL + " del", B_LABEL + " pick", GRAY)
         return None

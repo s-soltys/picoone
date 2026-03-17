@@ -7,8 +7,14 @@ BUTTON_PINS = {
     "B": 17,
 }
 
+EXTRA_BUTTON_PINS = {
+    "X": 19,
+    "Y": 21,
+    "CTRL": 3,
+}
+
 BUTTON_ORDER = ("UP", "DOWN", "LEFT", "RIGHT", "A", "B")
 
-A_LABEL = "A"
-B_LABEL = "B"
-HOME_HINT = "A+B home"
+A_LABEL = "Top (A)"
+B_LABEL = "Bottom (B)"
+HOME_HINT = "Top + Bottom home"

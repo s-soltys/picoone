@@ -1,17 +1,27 @@
 from machine import Pin
 import time
 
-from lcd import LCD_0inch96, BLACK, CYAN, WHITE, YELLOW, GRAY
+from core.display import LCD, BLACK, CYAN, WHITE, YELLOW, GRAY
 from core.controls import A_LABEL, B_LABEL
 from core.buttons import ButtonManager
-from core.ui import draw_header, draw_footer, draw_tile, center_x, HOME_HINT
+from core.ui import (
+    SCREEN_W,
+    SCREEN_H,
+    CONTENT_TOP,
+    CONTENT_H,
+    draw_header,
+    draw_footer_actions,
+    draw_tile,
+    center_x,
+    HOME_HINT,
+)
 from core.wifi import WiFiHelper
 from apps import build_apps
 
 
 class Launcher:
     def __init__(self):
-        self.lcd = LCD_0inch96()
+        self.lcd = LCD()
         self.buttons = ButtonManager()
         self.wifi = WiFiHelper()
         self.apps = build_apps()
@@ -58,14 +68,28 @@ class Launcher:
 
     def draw_boot(self):
         self.lcd.fill(BLACK)
-        self.lcd.text("PICO", center_x("PICO"), 18, CYAN)
-        self.lcd.text("LAUNCHER", center_x("LAUNCHER"), 32, WHITE)
-        self.lcd.text("Pico 2 W", center_x("Pico 2 W"), 48, YELLOW)
-        self.lcd.text(A_LABEL + " page", 20, 56, GRAY)
-        self.lcd.text(B_LABEL + " open", 84, 56, GRAY)
-        self.lcd.text(HOME_HINT, 20, 66, GRAY)
+        self.lcd.text("PICO", center_x("PICO"), 54, CYAN)
+        self.lcd.text("LAUNCHER", center_x("LAUNCHER"), 82, WHITE)
+        self.lcd.text("Pico 2 W", center_x("Pico 2 W"), 110, YELLOW)
+        self.lcd.text("Waveshare Pico-LCD-1.3", center_x("Waveshare Pico-LCD-1.3"), 136, GRAY)
+        self.lcd.text(A_LABEL + " page", center_x(A_LABEL + " page"), 176, WHITE)
+        self.lcd.text(B_LABEL + " open", center_x(B_LABEL + " open"), 192, WHITE)
+        self.lcd.text(HOME_HINT, center_x(HOME_HINT), 208, GRAY)
         self.lcd.display()
         time.sleep(0.7)
+
+    def _tile_layout(self):
+        gap = 10
+        tile_w = (SCREEN_W - 24 - gap) // 2
+        tile_h = (CONTENT_H - 10) // 2
+        left = 8
+        top = CONTENT_TOP + 4
+        return [
+            (left, top, tile_w, tile_h),
+            (left + tile_w + gap, top, tile_w, tile_h),
+            (left, top + tile_h + 10, tile_w, tile_h),
+            (left + tile_w + gap, top + tile_h + 10, tile_w, tile_h),
+        ]
 
     def draw_home(self):
         self.lcd.fill(BLACK)
@@ -73,20 +97,14 @@ class Launcher:
         draw_header(self.lcd, "Launcher", detail, WHITE)
 
         start = self.current_page() * 4
-        layout = [
-            (2, 13),
-            (81, 13),
-            (2, 42),
-            (81, 42),
-        ]
+        layout = self._tile_layout()
 
-        for offset, app in enumerate(self.apps[start:start + 4]):
-            x, y = layout[offset]
+        for offset, app in enumerate(self.apps[start : start + 4]):
+            x, y, w, h = layout[offset]
             is_selected = (start + offset) == self.selected_index
-            draw_tile(self.lcd, x, y, 77, 27, app.title, is_selected, app.accent, app.draw_icon, True)
+            draw_tile(self.lcd, x, y, w, h, app.title, is_selected, app.accent, app.draw_icon, True)
 
-        draw_footer(self.lcd, A_LABEL + " page", WHITE)
-        self.lcd.text(B_LABEL + " open", 80, 71, WHITE)
+        draw_footer_actions(self.lcd, A_LABEL + " page", B_LABEL + " open", WHITE)
 
     def step_home(self):
         if self.buttons.down("A") and self.buttons.down("B"):

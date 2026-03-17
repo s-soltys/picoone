@@ -1,7 +1,8 @@
 import time
 
-from lcd import BLACK, WHITE, CYAN, YELLOW, GRAY, BLUE, TEAL, ORANGE, GREEN
-from core.ui import draw_header, draw_footer, draw_empty_state, fit_text
+from core.display import BLACK, WHITE, CYAN, YELLOW, GRAY, BLUE, TEAL, ORANGE, GREEN
+from core.controls import B_LABEL
+from core.ui import CONTENT_TOP, draw_header, draw_footer_actions, draw_empty_state, fit_text
 from core.http import build_url, get_json
 
 try:
@@ -291,26 +292,26 @@ class WeatherApp:
     def _draw_loading(self, lcd):
         lcd.fill(BLACK)
         draw_header(lcd, "Weather", self._city()["short"], self.accent)
-        lcd.text(fit_text(self._city()["name"], 19), 4, 18, CYAN)
-        lcd.text("Fetching forecast", 4, 34, WHITE)
-        lcd.text("Please wait", 4, 48, GRAY)
-        draw_footer(lcd, "Bottom (B) ref", GRAY)
+        lcd.text(fit_text(self._city()["name"], 28), 4, CONTENT_TOP + 12, CYAN)
+        lcd.text("Fetching forecast", 4, CONTENT_TOP + 44, WHITE)
+        lcd.text("Please wait", 4, CONTENT_TOP + 70, GRAY)
+        draw_footer_actions(lcd, B_LABEL + " refresh", "L/R cities", GRAY)
 
     def _draw_empty(self, lcd):
         lines = [
-            fit_text(self._city()["name"], 19),
-            fit_text(self.error or "No weather data", 19),
-            "Bottom (B) retry",
+            fit_text(self._city()["name"], 28),
+            fit_text(self.error or "No weather data", 28),
+            B_LABEL + " retry",
         ]
         draw_empty_state(lcd, "Weather", lines, self.accent, "L/R cities")
 
     def _draw_status_note(self, lcd):
         if self.error:
-            lcd.text(fit_text("stale: " + self.error, 19), 4, 58, ORANGE)
+            lcd.text(fit_text("stale: " + self.error, 28), 4, CONTENT_TOP + 118, ORANGE)
         elif self.persisted_cache:
-            lcd.text("Saved cache", 4, 58, GRAY)
+            lcd.text("Saved cache", 4, CONTENT_TOP + 118, GRAY)
         else:
-            lcd.text(fit_text("Updated " + _age_text(self.last_refresh_ms), 19), 4, 58, GRAY)
+            lcd.text(fit_text("Updated " + _age_text(self.last_refresh_ms), 28), 4, CONTENT_TOP + 118, GRAY)
 
     def _draw_current(self, lcd):
         city = self._city()
@@ -319,36 +320,34 @@ class WeatherApp:
 
         lcd.fill(BLACK)
         draw_header(lcd, "Weather", city["short"], self.accent)
-        lcd.text(fit_text(city["name"], 19), 4, 12, CYAN)
-        lcd.text(fit_text(_weather_label(code), 19), 4, 24, YELLOW if code == 0 else WHITE)
+        lcd.text(fit_text(city["name"], 28), 4, CONTENT_TOP + 6, CYAN)
+        lcd.text(fit_text(_weather_label(code), 28), 4, CONTENT_TOP + 30, YELLOW if code == 0 else WHITE)
         lcd.text(
-            fit_text("T " + _temp_text(current["temperature"]) + " F " + _temp_text(current["feels_like"]), 19),
+            fit_text("T " + _temp_text(current["temperature"]) + " F " + _temp_text(current["feels_like"]), 28),
             4,
-            36,
+            CONTENT_TOP + 58,
             WHITE,
         )
-        lcd.text(fit_text("Wind " + _wind_text(current["wind_speed"]), 19), 4, 48, TEAL)
+        lcd.text(fit_text("Wind " + _wind_text(current["wind_speed"]), 28), 4, CONTENT_TOP + 86, TEAL)
         self._draw_status_note(lcd)
-        draw_footer(lcd, "Bottom (B) ref", GRAY)
-        lcd.text("U/D view", 92, 71, GRAY)
+        draw_footer_actions(lcd, B_LABEL + " refresh", "U/D view", GRAY)
 
     def _draw_forecast(self, lcd):
         city = self._city()
 
         lcd.fill(BLACK)
         draw_header(lcd, "Weather", city["short"], self.accent)
-        lcd.text(fit_text(city["name"], 19), 4, 12, CYAN)
+        lcd.text(fit_text(city["name"], 28), 4, CONTENT_TOP + 6, CYAN)
 
-        y = 24
+        y = CONTENT_TOP + 36
         for period in self.payload["forecast"]:
             line = period["label"] + " " + _temp_text(period["high"]) + "/" + _temp_text(period["low"])
             line += " " + _weather_label(period["code"])
-            lcd.text(fit_text(line, 19), 4, y, WHITE)
-            y += 11
+            lcd.text(fit_text(line, 28), 4, y, WHITE)
+            y += 22
 
         self._draw_status_note(lcd)
-        draw_footer(lcd, "Bottom (B) ref", GRAY)
-        lcd.text("U/D view", 92, 71, GRAY)
+        draw_footer_actions(lcd, B_LABEL + " refresh", "U/D view", GRAY)
 
     def _step_loading(self, runtime):
         if not self.loading_drawn:

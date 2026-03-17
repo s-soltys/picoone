@@ -1,7 +1,8 @@
 import random
 
-from lcd import BLACK, WHITE, GRAY, YELLOW, BLUE, RED, CYAN, GREEN, ORANGE
-from core.ui import draw_header, draw_footer
+from core.display import BLACK, WHITE, GRAY, YELLOW, BLUE, RED, CYAN, GREEN, ORANGE
+from core.controls import A_LABEL, B_LABEL
+from core.ui import CONTENT_TOP, SCREEN_W, draw_header, draw_footer_actions
 
 
 PAC_MAP = [
@@ -14,9 +15,9 @@ PAC_MAP = [
     "##############",
 ]
 
-CELL = 8
-MAP_X = 24
-MAP_Y = 12
+CELL = 14
+MAP_X = (SCREEN_W - (len(PAC_MAP[0]) * CELL)) // 2
+MAP_Y = CONTENT_TOP + 30
 DIRS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
 
@@ -172,42 +173,39 @@ class PacmanApp:
                     lcd.fill_rect(px + 1, py + 1, CELL - 2, CELL - 2, BLACK)
                 elif (x, y) in self.dots:
                     if self.dots[(x, y)] == "power":
-                        lcd.ellipse(px + 4, py + 4, 2, 2, ORANGE, True)
+                        lcd.ellipse(px + (CELL // 2), py + (CELL // 2), 4, 4, ORANGE, True)
                     else:
-                        lcd.pixel(px + 4, py + 4, WHITE)
+                        lcd.pixel(px + (CELL // 2), py + (CELL // 2), WHITE)
 
-        px = MAP_X + (self.player_x * CELL) + 4
-        py = MAP_Y + (self.player_y * CELL) + 4
-        lcd.ellipse(px, py, 3, 3, YELLOW, True)
+        px = MAP_X + (self.player_x * CELL) + (CELL // 2)
+        py = MAP_Y + (self.player_y * CELL) + (CELL // 2)
+        lcd.ellipse(px, py, 5, 5, YELLOW, True)
         if self.player_dir == (1, 0):
-            lcd.fill_rect(px + 1, py - 2, 3, 4, BLACK)
+            lcd.fill_rect(px + 2, py - 3, 5, 6, BLACK)
         elif self.player_dir == (-1, 0):
-            lcd.fill_rect(px - 4, py - 2, 3, 4, BLACK)
+            lcd.fill_rect(px - 7, py - 3, 5, 6, BLACK)
         elif self.player_dir == (0, -1):
-            lcd.fill_rect(px - 2, py - 4, 4, 3, BLACK)
+            lcd.fill_rect(px - 3, py - 7, 6, 5, BLACK)
         else:
-            lcd.fill_rect(px - 2, py + 1, 4, 3, BLACK)
+            lcd.fill_rect(px - 3, py + 2, 6, 5, BLACK)
 
         for ghost in self.ghosts:
-            gx = MAP_X + (ghost["x"] * CELL) + 4
-            gy = MAP_Y + (ghost["y"] * CELL) + 4
+            gx = MAP_X + (ghost["x"] * CELL) + (CELL // 2)
+            gy = MAP_Y + (ghost["y"] * CELL) + (CELL // 2)
             color = GREEN if self.power_timer > 0 else ghost["color"]
-            lcd.fill_rect(gx - 3, gy - 2, 6, 5, color)
-            lcd.ellipse(gx, gy - 2, 3, 3, color, True)
-            lcd.pixel(gx - 1, gy - 1, WHITE)
-            lcd.pixel(gx + 1, gy - 1, WHITE)
+            lcd.fill_rect(gx - 5, gy - 2, 10, 8, color)
+            lcd.ellipse(gx, gy - 3, 5, 5, color, True)
+            lcd.pixel(gx - 2, gy - 2, WHITE)
+            lcd.pixel(gx + 2, gy - 2, WHITE)
 
         if self.state == "playing" and not self.paused:
-            draw_footer(lcd, "B pause", GRAY)
+            draw_footer_actions(lcd, B_LABEL + " pause", A_LABEL + " reset", GRAY)
         elif self.paused:
-            draw_footer(lcd, "Paused", CYAN)
-            lcd.text("B resume", 60, 71, CYAN)
+            draw_footer_actions(lcd, "Paused", B_LABEL + " resume", CYAN)
         elif self.state == "won":
-            draw_footer(lcd, "Maze clear", GREEN)
-            lcd.text("A restart", 72, 71, GREEN)
+            draw_footer_actions(lcd, "Maze clear", A_LABEL + " restart", GREEN)
         else:
-            draw_footer(lcd, "Caught", RED)
-            lcd.text("A restart", 72, 71, RED)
+            draw_footer_actions(lcd, "Caught", A_LABEL + " restart", RED)
 
     def step(self, runtime):
         buttons = runtime.buttons

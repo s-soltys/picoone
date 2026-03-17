@@ -1,7 +1,8 @@
 import galaxy
 import time
 
-from lcd import CYAN, WHITE, YELLOW, BLACK, GRAY, GOLD
+from core.display import CYAN, WHITE, YELLOW, BLACK, GRAY, GOLD
+from core.ui import center_x
 
 
 class GalaxyApp:
@@ -24,7 +25,7 @@ class GalaxyApp:
         self.sel_planet = 0
         self.regions = None
         self.sel_region = 0
-        self.scroll_speed = 4
+        self.scroll_speed = 6
         self.show_splash = False
         self.splash_until = 0
         self.splash_phase = 0
@@ -64,20 +65,20 @@ class GalaxyApp:
         self.regions = None
         self.sel_region = 0
         g = self.galaxies[0]
-        self.uvx = max(0, min(galaxy.UNIV_W - 160, g[4] - 80))
-        self.uvy = max(0, min(galaxy.UNIV_H - 80, g[5] - 40))
+        self.uvx = max(0, min(galaxy.UNIV_W - galaxy.VIEW_W, g[4] - (galaxy.VIEW_W // 2)))
+        self.uvy = max(0, min(galaxy.UNIV_H - galaxy.VIEW_H, g[5] - (galaxy.VIEW_H // 2)))
 
     def _draw_splash(self, lcd):
         tick = time.ticks_ms()
         lcd.fill(BLACK)
         galaxy.draw_bg_stars(lcd, (tick // 7) % 400, (tick // 11) % 300)
-        galaxy._draw_mini_galaxy(lcd, 36, 38, 0, CYAN, False)
-        galaxy._draw_mini_galaxy(lcd, 82, 28, 1, GOLD, False)
-        galaxy._draw_mini_galaxy(lcd, 126, 42, 4, YELLOW, False)
-        lcd.text("GALAXY", 40, 10, CYAN)
-        lcd.text("EXPLORER", 32, 22, WHITE)
-        lcd.text("Charting stars", 28, 54, GRAY)
-        lcd.text("A/B skip", 20, 66, YELLOW)
+        galaxy._draw_mini_galaxy(lcd, 56, 116, 0, CYAN, False)
+        galaxy._draw_mini_galaxy(lcd, 120, 86, 1, GOLD, False)
+        galaxy._draw_mini_galaxy(lcd, 184, 126, 4, YELLOW, False)
+        lcd.text("GALAXY", center_x("GALAXY", galaxy.VIEW_W), 40, CYAN)
+        lcd.text("EXPLORER", center_x("EXPLORER", galaxy.VIEW_W), 64, WHITE)
+        lcd.text("Charting stars", center_x("Charting stars", galaxy.VIEW_W), 166, GRAY)
+        lcd.text("Top/Bottom skip", center_x("Top/Bottom skip", galaxy.VIEW_W), 188, YELLOW)
 
     def step(self, runtime):
         buttons = runtime.buttons
@@ -94,24 +95,24 @@ class GalaxyApp:
             if buttons.down("UP"):
                 self.uvy = max(0, self.uvy - self.scroll_speed)
             if buttons.down("DOWN"):
-                self.uvy = min(galaxy.UNIV_H - 80, self.uvy + self.scroll_speed)
+                self.uvy = min(galaxy.UNIV_H - galaxy.VIEW_H, self.uvy + self.scroll_speed)
             if buttons.down("LEFT"):
                 self.uvx = max(0, self.uvx - self.scroll_speed)
             if buttons.down("RIGHT"):
-                self.uvx = min(galaxy.UNIV_W - 160, self.uvx + self.scroll_speed)
+                self.uvx = min(galaxy.UNIV_W - galaxy.VIEW_W, self.uvx + self.scroll_speed)
             if buttons.pressed("A"):
                 self.sel_gal = (self.sel_gal + 1) % len(self.galaxies)
                 entry = self.galaxies[self.sel_gal]
-                self.uvx = max(0, min(galaxy.UNIV_W - 160, entry[4] - 80))
-                self.uvy = max(0, min(galaxy.UNIV_H - 80, entry[5] - 40))
+                self.uvx = max(0, min(galaxy.UNIV_W - galaxy.VIEW_W, entry[4] - (galaxy.VIEW_W // 2)))
+                self.uvy = max(0, min(galaxy.UNIV_H - galaxy.VIEW_H, entry[5] - (galaxy.VIEW_H // 2)))
             if buttons.pressed("B"):
                 self.sel_gal = galaxy.find_nearest_gal(self.galaxies, self.uvx, self.uvy)
                 if self.sel_gal >= 0:
                     entry = self.galaxies[self.sel_gal]
                     self.cur_shape = entry[2]
                     self.systems = galaxy.gen_galaxy(entry[0], self.cur_shape)
-                    self.vx = max(0, min(galaxy.WORLD_W - 160, self.systems[0][0] - 80))
-                    self.vy = max(0, min(galaxy.WORLD_H - 80, self.systems[0][1] - 40))
+                    self.vx = max(0, min(galaxy.WORLD_W - galaxy.VIEW_W, self.systems[0][0] - (galaxy.VIEW_W // 2)))
+                    self.vy = max(0, min(galaxy.WORLD_H - galaxy.VIEW_H, self.systems[0][1] - (galaxy.VIEW_H // 2)))
                     self.sel_idx = 0
                     self.state = galaxy.STATE_GALAXY
             self.sel_gal = galaxy.find_nearest_gal(self.galaxies, self.uvx, self.uvy)
@@ -122,11 +123,11 @@ class GalaxyApp:
             if buttons.down("UP"):
                 self.vy = max(0, self.vy - self.scroll_speed)
             if buttons.down("DOWN"):
-                self.vy = min(galaxy.WORLD_H - 80, self.vy + self.scroll_speed)
+                self.vy = min(galaxy.WORLD_H - galaxy.VIEW_H, self.vy + self.scroll_speed)
             if buttons.down("LEFT"):
                 self.vx = max(0, self.vx - self.scroll_speed)
             if buttons.down("RIGHT"):
-                self.vx = min(galaxy.WORLD_W - 160, self.vx + self.scroll_speed)
+                self.vx = min(galaxy.WORLD_W - galaxy.VIEW_W, self.vx + self.scroll_speed)
             if buttons.pressed("B"):
                 self.sel_idx = galaxy.find_nearest(self.systems, self.vx, self.vy)
                 if self.sel_idx >= 0:

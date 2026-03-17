@@ -1,25 +1,33 @@
 from machine import Pin
 import time
 
-from core.display import LCD, BLACK, CYAN, WHITE, YELLOW, GRAY
-from core.controls import A_LABEL, B_LABEL
+from core.display import LCD, BLACK, WHITE, GRAY
 from core.buttons import ButtonManager
 from core.ui import (
     SCREEN_W,
     SCREEN_H,
-    CONTENT_TOP,
-    CONTENT_H,
-    draw_header,
-    draw_footer_actions,
-    draw_tile,
-    center_x,
-    HOME_HINT,
+    DESKTOP_TOP,
+    WINDOW_CONTENT_X,
+    WINDOW_CONTENT_Y,
+    WINDOW_TEXT_CHARS,
+    draw_menu_bar,
+    draw_desktop_background,
+    draw_desktop_icon,
+    draw_mouse_pointer,
+    draw_window_shell,
+    fit_text,
 )
 from core.wifi import WiFiHelper
 from apps import build_apps
 
 
 class Launcher:
+    CURSOR_STEP = 8
+    ICON_COLS = 3
+    ICON_ROWS = 4
+    MENU_FRAME_MS = 12
+    APP_FRAME_MS = 30
+
     def __init__(self):
         self.lcd = LCD()
         self.buttons = ButtonManager()
@@ -27,6 +35,9 @@ class Launcher:
         self.apps = build_apps()
         self.selected_index = 0
         self.active_app = None
+        self.active_mode = "desktop"
+        self.cursor_x = 18
+        self.cursor_y = DESKTOP_TOP + 18
         self.led = None
         try:
             self.led = Pin("LED", Pin.OUT)
@@ -34,19 +45,12 @@ class Launcher:
         except Exception:
             self.led = None
 
-    def app_count(self):
-        return len(self.apps)
-
-    def page_count(self):
-        return (self.app_count() + 3) // 4
-
-    def current_page(self):
-        return self.selected_index // 4
-
     def open_app(self, index):
         if index < 0 or index >= len(self.apps):
             return
+        self.selected_index = index
         self.active_app = self.apps[index]
+        self.active_mode = getattr(self.active_app, "launch_mode", "fullscreen")
         if hasattr(self.active_app, "on_open"):
             self.active_app.on_open(self)
 
@@ -54,74 +58,92 @@ class Launcher:
         if self.active_app and hasattr(self.active_app, "on_close"):
             self.active_app.on_close(self)
         self.active_app = None
+        self.active_mode = "desktop"
 
-    def move_selection(self, delta):
-        new_index = self.selected_index + delta
-        if 0 <= new_index < len(self.apps):
-            self.selected_index = new_index
+    def _desktop_layout(self):
+        slot_w = (SCREEN_W - 20) // self.ICON_COLS
+        slot_h = 50
+        left = 8
+        top = DESKTOP_TOP + 8
+        layout = []
+        for index in range(len(self.apps)):
+            col = index % self.ICON_COLS
+            row = index // self.ICON_COLS
+            if row >= self.ICON_ROWS:
+                break
+            layout.append((left + (col * slot_w), top + (row * slot_h), slot_w, slot_h))
+        return layout
 
-    def next_page(self):
-        if self.page_count() <= 1:
-            return
-        page = (self.current_page() + 1) % self.page_count()
-        self.selected_index = min(len(self.apps) - 1, page * 4)
+    def _hovered_index(self):
+        for index, rect in enumerate(self._desktop_layout()):
+            x, y, w, h = rect
+            if x <= self.cursor_x < x + w and y <= self.cursor_y < y + h:
+                return index
+        return None
+
+    def _move_cursor(self):
+        if self.buttons.down("LEFT"):
+            self.cursor_x -= self.CURSOR_STEP
+        if self.buttons.down("RIGHT"):
+            self.cursor_x += self.CURSOR_STEP
+        if self.buttons.down("UP"):
+            self.cursor_y -= self.CURSOR_STEP
+        if self.buttons.down("DOWN"):
+            self.cursor_y += self.CURSOR_STEP
+
+        self.cursor_x = min(SCREEN_W - 6, max(0, self.cursor_x))
+        self.cursor_y = min(SCREEN_H - 8, max(DESKTOP_TOP, self.cursor_y))
 
     def draw_boot(self):
-        self.lcd.fill(BLACK)
-        self.lcd.text("PICO", center_x("PICO"), 54, CYAN)
-        self.lcd.text("LAUNCHER", center_x("LAUNCHER"), 82, WHITE)
-        self.lcd.text("Pico 2 W", center_x("Pico 2 W"), 110, YELLOW)
-        self.lcd.text("Waveshare Pico-LCD-1.3", center_x("Waveshare Pico-LCD-1.3"), 136, GRAY)
-        self.lcd.text(A_LABEL + " page", center_x(A_LABEL + " page"), 176, WHITE)
-        self.lcd.text(B_LABEL + " open", center_x(B_LABEL + " open"), 192, WHITE)
-        self.lcd.text(HOME_HINT, center_x(HOME_HINT), 208, GRAY)
+        draw_window_shell(self.lcd, "Welcome", self.wifi.status())
+        self.lcd.text("Pico Finder", WINDOW_CONTENT_X + 40, WINDOW_CONTENT_Y + 18, BLACK)
+        self.lcd.text("Desktop launcher", WINDOW_CONTENT_X + 12, WINDOW_CONTENT_Y + 44, BLACK)
+        self.lcd.text("D-pad moves mouse", WINDOW_CONTENT_X + 12, WINDOW_CONTENT_Y + 72, BLACK)
+        self.lcd.text("Top (A) select", WINDOW_CONTENT_X + 12, WINDOW_CONTENT_Y + 98, BLACK)
+        self.lcd.text("Bottom (B) open", WINDOW_CONTENT_X + 12, WINDOW_CONTENT_Y + 124, BLACK)
+        self.lcd.text("Top + Bottom home", WINDOW_CONTENT_X + 12, WINDOW_CONTENT_Y + 150, GRAY)
         self.lcd.display()
-        time.sleep(0.7)
-
-    def _tile_layout(self):
-        gap = 10
-        tile_w = (SCREEN_W - 24 - gap) // 2
-        tile_h = (CONTENT_H - 10) // 2
-        left = 8
-        top = CONTENT_TOP + 4
-        return [
-            (left, top, tile_w, tile_h),
-            (left + tile_w + gap, top, tile_w, tile_h),
-            (left, top + tile_h + 10, tile_w, tile_h),
-            (left + tile_w + gap, top + tile_h + 10, tile_w, tile_h),
-        ]
+        time.sleep(0.75)
 
     def draw_home(self):
-        self.lcd.fill(BLACK)
-        detail = str(self.current_page() + 1) + "/" + str(self.page_count())
-        draw_header(self.lcd, "Launcher", detail, WHITE)
+        wifi_status = self.wifi.status()
+        hovered = self._hovered_index()
+        active_index = hovered if hovered is not None else self.selected_index
 
-        start = self.current_page() * 4
-        layout = self._tile_layout()
+        draw_desktop_background(self.lcd)
+        draw_menu_bar(self.lcd, "Pico Finder", wifi_status)
 
-        for offset, app in enumerate(self.apps[start : start + 4]):
-            x, y, w, h = layout[offset]
-            is_selected = (start + offset) == self.selected_index
-            draw_tile(self.lcd, x, y, w, h, app.title, is_selected, app.accent, app.draw_icon, True)
+        for index, app in enumerate(self.apps):
+            if index >= len(self._desktop_layout()):
+                break
+            x, y, w, h = self._desktop_layout()[index]
+            draw_desktop_icon(self.lcd, x, y, w, h, app.title, index == active_index, app.draw_icon)
 
-        draw_footer_actions(self.lcd, A_LABEL + " page", B_LABEL + " open", WHITE)
+        if active_index is not None and 0 <= active_index < len(self.apps):
+            label = self.apps[active_index].title
+            mode = getattr(self.apps[active_index], "launch_mode", "fullscreen")
+            detail = "window" if mode == "window" else "full screen"
+            self.lcd.fill_rect(0, SCREEN_H - 14, SCREEN_W, 14, WHITE)
+            self.lcd.hline(0, SCREEN_H - 14, SCREEN_W, BLACK)
+            self.lcd.text(fit_text(label, WINDOW_TEXT_CHARS), 4, SCREEN_H - 11, BLACK)
+            self.lcd.text(fit_text(detail, 11), SCREEN_W - 92, SCREEN_H - 11, GRAY)
+
+        draw_mouse_pointer(self.lcd, self.cursor_x, self.cursor_y)
 
     def step_home(self):
         if self.buttons.down("A") and self.buttons.down("B"):
             self.draw_home()
             return
-        if self.buttons.repeat("LEFT"):
-            self.move_selection(-1)
-        if self.buttons.repeat("RIGHT"):
-            self.move_selection(1)
-        if self.buttons.repeat("UP"):
-            self.move_selection(-2)
-        if self.buttons.repeat("DOWN"):
-            self.move_selection(2)
-        if self.buttons.pressed("A"):
-            self.next_page()
-        if self.buttons.pressed("B"):
-            self.open_app(self.selected_index)
+
+        self._move_cursor()
+        hovered = self._hovered_index()
+
+        if hovered is not None and self.buttons.pressed("A"):
+            self.selected_index = hovered
+        if hovered is not None and self.buttons.pressed("B"):
+            self.open_app(hovered)
+            return
+
         self.draw_home()
 
     def run(self):
@@ -142,4 +164,7 @@ class Launcher:
                         self.go_home()
                         self.draw_home()
             self.lcd.display()
-            time.sleep(0.03)
+            if self.active_app is None:
+                time.sleep_ms(self.MENU_FRAME_MS)
+            else:
+                time.sleep_ms(self.APP_FRAME_MS)

@@ -1,6 +1,14 @@
-from core.display import BLACK, WHITE, CYAN, YELLOW, GRAY, GREEN, ORANGE, SLATE
+from core.display import BLACK, WHITE, GRAY, CYAN, ORANGE
 from core.controls import A_LABEL, B_LABEL
-from core.ui import CONTENT_TOP, SCREEN_W, draw_header, draw_footer_actions, fit_text
+from core.ui import (
+    WINDOW_CONTENT_X,
+    WINDOW_CONTENT_Y,
+    WINDOW_CONTENT_W,
+    WINDOW_TEXT_CHARS,
+    draw_window_shell,
+    draw_window_footer_actions,
+    fit_text,
+)
 
 
 OPS = "+-*/"
@@ -16,6 +24,7 @@ class CalculatorApp:
     app_id = "calculator"
     title = "Calc"
     accent = ORANGE
+    launch_mode = "window"
 
     def __init__(self):
         self.cursor_x = 0
@@ -27,7 +36,7 @@ class CalculatorApp:
 
     def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
         frame = BLACK if monochrome and selected else (WHITE if monochrome else ORANGE)
-        screen = BLACK if monochrome and selected else (WHITE if monochrome else GREEN)
+        screen = BLACK if monochrome and selected else (WHITE if monochrome else CYAN)
         mark = BLACK if monochrome and selected else WHITE
         lcd.rect(cx - 10, cy - 9, 20, 18, frame)
         lcd.fill_rect(cx - 8, cy - 7, 16, 5, screen)
@@ -39,12 +48,6 @@ class CalculatorApp:
     def on_open(self, runtime):
         self.cursor_x = 0
         self.cursor_y = 0
-        self.expression = ""
-        self.result = ""
-        self.error = ""
-        self.just_evaluated = False
-
-    def clear(self):
         self.expression = ""
         self.result = ""
         self.error = ""
@@ -131,11 +134,11 @@ class CalculatorApp:
     def step(self, runtime):
         buttons = runtime.buttons
         lcd = runtime.lcd
-        key_gap = 6
-        key_w = (SCREEN_W - 10 - (key_gap * 3)) // 4
+        key_gap = 5
+        key_w = (WINDOW_CONTENT_W - (key_gap * 3)) // 4
         key_h = 28
-        key_x0 = 5
-        key_y0 = CONTENT_TOP + 58
+        key_x0 = WINDOW_CONTENT_X
+        key_y0 = WINDOW_CONTENT_Y + 42
 
         if buttons.repeat("LEFT"):
             self.cursor_x = max(0, self.cursor_x - 1)
@@ -150,26 +153,25 @@ class CalculatorApp:
         if buttons.pressed("B"):
             self.press_key(KEYPAD[self.cursor_y][self.cursor_x])
 
-        lcd.fill(BLACK)
-        draw_header(lcd, "Calculator", color=ORANGE)
+        draw_window_shell(lcd, "Calculator", runtime.wifi.status())
 
         display_expr = self.expression or "0"
-        lcd.text(fit_text(display_expr, 28), 4, CONTENT_TOP + 8, WHITE)
+        lcd.text(fit_text(display_expr, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 2, BLACK)
         if self.error:
-            lcd.text(fit_text(self.error, 28), 4, CONTENT_TOP + 26, YELLOW)
+            lcd.text(fit_text(self.error, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 20, ORANGE)
         else:
             result = self.result if self.result else B_LABEL + " eval"
-            lcd.text(fit_text(result, 28), 4, CONTENT_TOP + 26, CYAN)
+            lcd.text(fit_text(result, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 20, CYAN)
 
         for row in range(4):
             for col in range(4):
                 x = key_x0 + (col * (key_w + key_gap))
-                y = key_y0 + (row * (key_h + 8))
+                y = key_y0 + (row * (key_h + 6))
                 key = KEYPAD[row][col]
                 selected = row == self.cursor_y and col == self.cursor_x
-                lcd.fill_rect(x, y, key_w, key_h, SLATE if selected else BLACK)
-                lcd.rect(x, y, key_w, key_h, YELLOW if selected else GRAY)
-                lcd.text(key, x + max(2, (key_w - 8) // 2), y + 10, ORANGE if selected else GREEN)
+                lcd.fill_rect(x, y, key_w, key_h, BLACK if selected else WHITE)
+                lcd.rect(x, y, key_w, key_h, BLACK)
+                lcd.text(key, x + max(2, (key_w - 8) // 2), y + 10, WHITE if selected else BLACK)
 
-        draw_footer_actions(lcd, A_LABEL + " del", B_LABEL + " pick", GRAY)
+        draw_window_footer_actions(lcd, A_LABEL + " del", B_LABEL + " key", BLACK)
         return None

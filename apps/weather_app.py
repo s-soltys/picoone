@@ -2,7 +2,15 @@ import time
 
 from core.display import BLACK, WHITE, CYAN, YELLOW, GRAY, BLUE, TEAL, ORANGE, GREEN
 from core.controls import B_LABEL
-from core.ui import CONTENT_TOP, draw_header, draw_footer_actions, draw_empty_state, fit_text
+from core.ui import (
+    WINDOW_CONTENT_X,
+    WINDOW_CONTENT_Y,
+    WINDOW_TEXT_CHARS,
+    draw_window_shell,
+    draw_window_footer_actions,
+    draw_window_empty_state,
+    fit_text,
+)
 from core.http import build_url, get_json
 
 try:
@@ -107,6 +115,7 @@ class WeatherApp:
     app_id = "weather"
     title = "Weather"
     accent = BLUE
+    launch_mode = "window"
 
     def __init__(self):
         self.city_index = 0
@@ -289,70 +298,67 @@ class WeatherApp:
         self.error = ""
         self._save_state()
 
-    def _draw_loading(self, lcd):
-        lcd.fill(BLACK)
-        draw_header(lcd, "Weather", self._city()["short"], self.accent)
-        lcd.text(fit_text(self._city()["name"], 28), 4, CONTENT_TOP + 12, CYAN)
-        lcd.text("Fetching forecast", 4, CONTENT_TOP + 44, WHITE)
-        lcd.text("Please wait", 4, CONTENT_TOP + 70, GRAY)
-        draw_footer_actions(lcd, B_LABEL + " refresh", "L/R cities", GRAY)
+    def _draw_loading(self, lcd, runtime):
+        draw_window_shell(lcd, "Weather", runtime.wifi.status())
+        lcd.text(fit_text(self._city()["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, CYAN)
+        lcd.text("Fetching forecast", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, BLACK)
+        lcd.text("Please wait", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 66, GRAY)
+        draw_window_footer_actions(lcd, B_LABEL + " refresh", "L/R cities", BLACK)
 
-    def _draw_empty(self, lcd):
+    def _draw_empty(self, lcd, runtime):
         lines = [
-            fit_text(self._city()["name"], 28),
-            fit_text(self.error or "No weather data", 28),
+            fit_text(self._city()["name"], WINDOW_TEXT_CHARS),
+            fit_text(self.error or "No weather data", WINDOW_TEXT_CHARS),
             B_LABEL + " retry",
         ]
-        draw_empty_state(lcd, "Weather", lines, self.accent, "L/R cities")
+        draw_window_empty_state(lcd, "Weather", lines, runtime.wifi.status(), "L/R cities")
 
     def _draw_status_note(self, lcd):
         if self.error:
-            lcd.text(fit_text("stale: " + self.error, 28), 4, CONTENT_TOP + 118, ORANGE)
+            lcd.text(fit_text("stale: " + self.error, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 114, ORANGE)
         elif self.persisted_cache:
-            lcd.text("Saved cache", 4, CONTENT_TOP + 118, GRAY)
+            lcd.text("Saved cache", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 114, GRAY)
         else:
-            lcd.text(fit_text("Updated " + _age_text(self.last_refresh_ms), 28), 4, CONTENT_TOP + 118, GRAY)
+            lcd.text(fit_text("Updated " + _age_text(self.last_refresh_ms), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 114, GRAY)
 
-    def _draw_current(self, lcd):
+    def _draw_current(self, lcd, runtime):
         city = self._city()
         current = self.payload["current"]
         code = current["weather_code"]
 
-        lcd.fill(BLACK)
-        draw_header(lcd, "Weather", city["short"], self.accent)
-        lcd.text(fit_text(city["name"], 28), 4, CONTENT_TOP + 6, CYAN)
-        lcd.text(fit_text(_weather_label(code), 28), 4, CONTENT_TOP + 30, YELLOW if code == 0 else WHITE)
+        draw_window_shell(lcd, "Weather", runtime.wifi.status())
+        lcd.text(fit_text(city["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 6, CYAN)
+        lcd.text(fit_text(_weather_label(code), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 30, YELLOW if code == 0 else BLACK)
         lcd.text(
-            fit_text("T " + _temp_text(current["temperature"]) + " F " + _temp_text(current["feels_like"]), 28),
-            4,
-            CONTENT_TOP + 58,
-            WHITE,
+            fit_text("T " + _temp_text(current["temperature"]) + " F " + _temp_text(current["feels_like"]), WINDOW_TEXT_CHARS),
+            WINDOW_CONTENT_X,
+            WINDOW_CONTENT_Y + 58,
+            BLACK,
         )
-        lcd.text(fit_text("Wind " + _wind_text(current["wind_speed"]), 28), 4, CONTENT_TOP + 86, TEAL)
+        lcd.text(fit_text("Wind " + _wind_text(current["wind_speed"]), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 86, TEAL)
         self._draw_status_note(lcd)
-        draw_footer_actions(lcd, B_LABEL + " refresh", "U/D view", GRAY)
+        draw_window_footer_actions(lcd, B_LABEL + " refresh", "U/D view", BLACK)
 
-    def _draw_forecast(self, lcd):
+    def _draw_forecast(self, lcd, runtime):
         city = self._city()
 
-        lcd.fill(BLACK)
-        draw_header(lcd, "Weather", city["short"], self.accent)
-        lcd.text(fit_text(city["name"], 28), 4, CONTENT_TOP + 6, CYAN)
+        draw_window_shell(lcd, "Weather", runtime.wifi.status())
+        lcd.text(fit_text(city["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 6, CYAN)
 
-        y = CONTENT_TOP + 36
+        y = WINDOW_CONTENT_Y + 36
         for period in self.payload["forecast"]:
             line = period["label"] + " " + _temp_text(period["high"]) + "/" + _temp_text(period["low"])
             line += " " + _weather_label(period["code"])
-            lcd.text(fit_text(line, 28), 4, y, WHITE)
+            lcd.text(fit_text(line, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y, BLACK)
             y += 22
 
         self._draw_status_note(lcd)
-        draw_footer_actions(lcd, B_LABEL + " refresh", "U/D view", GRAY)
+        draw_window_footer_actions(lcd, B_LABEL + " refresh", "U/D view", BLACK)
 
     def _step_loading(self, runtime):
         if not self.loading_drawn:
             self.loading_drawn = True
-            self._draw_loading(runtime.lcd)
+            self._draw_loading(runtime.lcd, runtime)
             return
         self._perform_refresh(runtime)
 
@@ -365,11 +371,11 @@ class WeatherApp:
 
         if buttons.repeat("LEFT", 180, 120):
             self._change_city(-1)
-            self._draw_loading(runtime.lcd)
+            self._draw_loading(runtime.lcd, runtime)
             return None
         if buttons.repeat("RIGHT", 180, 120):
             self._change_city(1)
-            self._draw_loading(runtime.lcd)
+            self._draw_loading(runtime.lcd, runtime)
             return None
         if buttons.pressed("UP") or buttons.pressed("DOWN"):
             if self.view == "current":
@@ -378,13 +384,13 @@ class WeatherApp:
                 self.view = "current"
         if buttons.pressed("B"):
             self._queue_refresh()
-            self._draw_loading(runtime.lcd)
+            self._draw_loading(runtime.lcd, runtime)
             return None
 
         if self.payload is None:
-            self._draw_empty(runtime.lcd)
+            self._draw_empty(runtime.lcd, runtime)
         elif self.view == "forecast":
-            self._draw_forecast(runtime.lcd)
+            self._draw_forecast(runtime.lcd, runtime)
         else:
-            self._draw_current(runtime.lcd)
+            self._draw_current(runtime.lcd, runtime)
         return None

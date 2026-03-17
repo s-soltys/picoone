@@ -1,6 +1,6 @@
 # Pico Launcher
 
-Mini smartphone-style launcher for Raspberry Pi Pico 2 W with the Waveshare Pico-LCD-1.3 display.
+Early Macintosh-style desktop launcher for Raspberry Pi Pico 2 W with the Waveshare Pico-LCD-1.3 display.
 
 Hardware reference:
 - https://www.waveshare.com/wiki/Pico-LCD-1.3
@@ -8,7 +8,7 @@ Hardware reference:
 
 ## What It Does
 
-The device now boots into a launcher instead of jumping straight into the galaxy explorer.
+The device now boots into a monochrome desktop instead of jumping straight into the galaxy explorer.
 
 Included apps:
 - `Galaxy`: the original galaxy/system/planet explorer
@@ -17,17 +17,24 @@ Included apps:
 - `Calculator`: four-function on-screen calculator
 - `Files`: fake read-only file explorer backed by a static in-memory tree
 - `Mines`: compact minesweeper
-- `Rage`: small side-scrolling beat-em-up inspired by Streets of Rage
 - `Invaders`: arcade shooter
 - `Pac-Man`: maze chase
 - `Arkanoid`: brick breaker
 - `Tetris`: falling-block puzzle
 - `Paint`: simple pixel painter
 
+Desktop shell notes:
+- apps are shown as desktop icons instead of launcher tiles
+- the D-pad now drives a mouse pointer on the desktop
+- the top bar shows greyscale Wi-Fi status at all times on the desktop and maximized utility windows
+- utility apps such as `Weather`, `Calc`, and `Files` open in a maximized window
+- immersive apps such as `Galaxy`, `Mines`, `Invaders`, `Pac-Man`, `Arkanoid`, `Tetris`, and `Paint` stay full screen
+
 ## Controls
 
 Shared controls:
-- D-pad: move selection / scroll / pan
+- Desktop D-pad: move the mouse pointer
+- In-app D-pad: move selection / scroll / pan
 - `Top (A)`: secondary action, back, cycle, or restart depending on the app
 - `Bottom (B)`: primary action, open, select, or confirm depending on the app
 - `Top + Bottom`: global home shortcut, returns to the launcher from any app
@@ -37,13 +44,13 @@ Board notes:
 - The board also exposes `X`, `Y`, and joystick press buttons, but this repo version intentionally does not bind them yet.
 
 App-specific notes:
+- `Desktop`: hover an icon with the pointer, `Top (A)` selects it, and `Bottom (B)` opens it
 - `Galaxy`: `Top (A)` jumps to the next galaxy on the overview, `Bottom (B)` enters the current target, and `Top (A)` backs out of deeper views
 - `Wi-Fi`: opens on a status page, `Bottom (B)` opens the network list from status, `Top (A)` returns to status from the list/result views, and `Bottom (B)` joins or picks the highlighted item
 - `Weather`: `Left/Right` switches between built-in cities, `Up/Down` toggles current conditions vs forecast, and `Bottom (B)` refreshes data
 - `Calculator`: `Top (A)` deletes one character, `Bottom (B)` presses the highlighted key
 - `Files`: `Top (A)` goes back, `Bottom (B)` opens a folder or file preview
 - `Mines`: `Top (A)` toggles a flag while playing and restarts after a win/loss, `Bottom (B)` reveals a tile
-- `Rage`: D-pad moves, `Bottom (B)` punches, `Top (A)` uses the spin attack, and `Top (A)` restarts after defeat/clear
 - `Invaders`: D-pad moves, `Bottom (B)` fires, `Top (A)` restarts
 - `Pac-Man`: D-pad steers, `Bottom (B)` pauses/resumes, `Top (A)` restarts
 - `Arkanoid`: D-pad moves, `Bottom (B)` launches, `Top (A)` resets
@@ -143,8 +150,9 @@ It watches the Pico-LCD board buttons for 20 seconds and prints presses/releases
 
 1. Create a new app class under `apps/`.
 2. Give it `app_id`, `title`, `accent`, `draw_icon()`, `on_open()`, and `step()` methods.
-3. Register it in [apps/__init__.py](/Users/szymon/picotest/picoone/apps/__init__.py).
-4. Keep navigation on the shared button model and do not bypass the global `A + B` home gesture.
+3. Optionally set `launch_mode = "window"` if it should open in a maximized desktop window. Omit it for full-screen apps.
+4. Register it in [apps/__init__.py](/Users/szymon/picotest/picoone/apps/__init__.py).
+5. Keep navigation on the shared button model and do not bypass the global `A + B` home gesture.
 
 `step(runtime)` is called once per frame. Use:
 - `runtime.lcd` for drawing

@@ -1,6 +1,15 @@
 from core.display import BLACK, WHITE, CYAN, GRAY, AMBER, TEAL
 from core.controls import A_LABEL, B_LABEL
-from core.ui import CONTENT_TOP, CONTENT_BOTTOM, SCREEN_W, draw_header, draw_footer_actions, fit_text
+from core.ui import (
+    WINDOW_CONTENT_X,
+    WINDOW_CONTENT_Y,
+    WINDOW_CONTENT_W,
+    WINDOW_CONTENT_BOTTOM,
+    WINDOW_TEXT_CHARS,
+    draw_window_shell,
+    draw_window_footer_actions,
+    fit_text,
+)
 
 
 FAKE_TREE = {
@@ -55,6 +64,7 @@ class FilesApp:
     app_id = "files"
     title = "Files"
     accent = AMBER
+    launch_mode = "window"
 
     def __init__(self):
         self.stack = [FAKE_TREE]
@@ -75,7 +85,7 @@ class FilesApp:
         self.selected = 0
         self.scroll = 0
         self.preview = None
-        self.rows = max(1, (CONTENT_BOTTOM - (CONTENT_TOP + 28)) // 14)
+        self.rows = max(1, (WINDOW_CONTENT_BOTTOM - (WINDOW_CONTENT_Y + 26)) // 14)
 
     def current_dir(self):
         return self.stack[-1]
@@ -123,33 +133,33 @@ class FilesApp:
             if self.selected >= self.scroll + self.rows:
                 self.scroll = self.selected - (self.rows - 1)
 
-        lcd.fill(BLACK)
-        draw_header(lcd, "Files", color=AMBER)
+        draw_window_shell(lcd, "Files", runtime.wifi.status())
 
         if self.preview:
             item = self.preview
-            lcd.text(fit_text(item["name"], 28), 4, CONTENT_TOP + 12, CYAN)
-            lcd.text("file", 4, CONTENT_TOP + 38, WHITE)
-            lcd.text(item["size"], 4, CONTENT_TOP + 56, WHITE)
-            lcd.text(fit_text(item["meta"], 28), 4, CONTENT_TOP + 82, GRAY)
-            draw_footer_actions(lcd, A_LABEL + " back")
+            lcd.text(fit_text(item["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, CYAN)
+            lcd.text("file", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 34, BLACK)
+            lcd.text(item["size"], WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 52, BLACK)
+            lcd.text(fit_text(item["meta"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 78, GRAY)
+            draw_window_footer_actions(lcd, A_LABEL + " back", "", BLACK)
             return None
 
-        lcd.text(fit_text(self.current_path(), 28), 4, CONTENT_TOP + 2, TEAL)
+        lcd.text(fit_text(self.current_path(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y, TEAL)
 
-        y = CONTENT_TOP + 24
+        y = WINDOW_CONTENT_Y + 20
         items = self.current_items()
         end = min(len(items), self.scroll + self.rows)
         for index in range(self.scroll, end):
             item = items[index]
             selected = index == self.selected
             if selected:
-                lcd.fill_rect(0, y - 2, SCREEN_W, 14, GRAY)
+                lcd.fill_rect(WINDOW_CONTENT_X - 2, y - 1, WINDOW_CONTENT_W + 2, 13, BLACK)
             icon = "D" if item["kind"] == "dir" else "F"
-            color = BLACK if selected else (AMBER if item["kind"] == "dir" else WHITE)
-            lcd.text(icon, 2, y, color)
-            lcd.text(fit_text(item["name"], 25), 16, y, BLACK if selected else WHITE)
+            color = WHITE if selected else (AMBER if item["kind"] == "dir" else BLACK)
+            text_color = WHITE if selected else BLACK
+            lcd.text(icon, WINDOW_CONTENT_X, y, color)
+            lcd.text(fit_text(item["name"], WINDOW_TEXT_CHARS - 2), WINDOW_CONTENT_X + 14, y, text_color)
             y += 14
 
-        draw_footer_actions(lcd, B_LABEL + " open", A_LABEL + " up", GRAY)
+        draw_window_footer_actions(lcd, B_LABEL + " open", A_LABEL + " up", BLACK)
         return None

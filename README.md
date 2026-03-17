@@ -17,6 +17,7 @@ Included apps:
 - `Weather`: current conditions plus a short forecast for a built-in city list using Open-Meteo
 - `Calculator`: four-function on-screen calculator
 - `Files`: fake read-only file explorer backed by a static in-memory tree
+- `MTG Life`: four-player Commander life counter
 - `Mines`: compact minesweeper
 - `Invaders`: arcade shooter
 - `Pac-Man`: maze chase
@@ -30,7 +31,7 @@ Desktop shell notes:
 - the D-pad drives a mouse pointer on the desktop, including the top menu bar
 - Wi-Fi now lives under the `Wi-Fi` dropdown in the top bar instead of as a desktop icon
 - the top-right corner shows the current `HH:MM` if the device RTC is valid, otherwise it falls back to `PicoOS`
-- utility apps such as `Wi-Fi`, `Browser`, `Weather`, `Calc`, `Files`, and `Games` open in a tighter maximized window shell
+- utility apps such as `Wi-Fi`, `Browser`, `Weather`, `Calc`, `Files`, `MTG Life`, and `Games` open in a tighter maximized window shell
 - arcade apps such as `Mines`, `Invaders`, `Pac-Man`, `Arkanoid`, and `Tetris` now live inside the desktop `Games` folder
 - immersive apps such as `Galaxy` and `Paint` stay full screen
 
@@ -45,17 +46,18 @@ Shared controls:
 
 Board notes:
 - The launcher now targets the Pico-LCD-1.3 native `240x240` panel.
-- The board exposes `X`, `Y`, and joystick press buttons. This repo version now uses `X` and `Y` in the Browser app for faster site switching.
+- The board exposes `X`, `Y`, and joystick press buttons. This repo version now uses `X` and `Y` in the Browser app and the MTG Commander life counter.
 
 App-specific notes:
 - `Desktop`: hover an icon with the pointer, `Top (A)` selects it, and `Bottom (B)` opens it
 - `Desktop menu bar`: hover `Wi-Fi` and press `Top (A)` or `Bottom (B)` to open the dropdown, then click a menu item with `Bottom (B)`
-- `Galaxy`: `Top (A)` jumps to the next galaxy on the overview, `Bottom (B)` enters the current target, and `Top (A)` backs out of deeper views
+- `Galaxy`: the galaxy and selector maps now show a center reticle with parallax star motion, while the system and planet views use a floating scanner window in the top-right; `Top (A)` jumps to the next galaxy on the overview, `Bottom (B)` enters the current target, and `Top (A)` backs out of deeper views
 - `Wi-Fi`: open it from the top `Wi-Fi` menu. It opens in a maximized window, `Top (A)` closes back to the desktop from status, `Bottom (B)` opens the network list, and `Bottom (B)` joins the highlighted network
-- `Browser`: opens on `about:bookmarks`, `Up/Down` or `X/Y` picks a bookmark, `Bottom (B)` opens or reloads a site, `X/Y` switches sites while reading, and `Top (A)` returns to the bookmark list
+- `Browser`: opens on `about:bookmarks`, `Up/Down` or `X/Y` picks a bookmark, `Bottom (B)` opens a site, and once inside a page `Up/Down` chooses links or entries, `Bottom (B)` opens the selected item, `X/Y` switches top-level sites, and `Top (A)` goes back
 - `Weather`: `Left/Right` switches between built-in cities, `Up/Down` toggles current conditions vs forecast, and `Bottom (B)` refreshes data
 - `Calculator`: `Top (A)` deletes one character, `Bottom (B)` presses the highlighted key
 - `Files`: `Top (A)` goes back, `Bottom (B)` opens a folder or file preview
+- `MTG Life`: full-screen four-player Commander board with one color per player; D-pad picks a seat, `Top (A)` is `-1`, `Bottom (B)` is `+1`, `X` is `-5`, `Y` is `+5`, and pressing `X + Y` resets the table to `40`
 - `Games`: opens the arcade folder window, `Up/Down` chooses a game, `Bottom (B)` launches it, and `Top (A)` returns to the desktop
 - `Mines`: `Top (A)` toggles a flag while playing and restarts after a win/loss, `Bottom (B)` reveals a tile
 - `Invaders`: D-pad moves, `Bottom (B)` fires, `Top (A)` restarts, and the pacing is faster than before

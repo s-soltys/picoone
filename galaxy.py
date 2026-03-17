@@ -26,6 +26,7 @@ TITLE_BAR_H = 18
 FOOTER_BAR_H = 16
 SYSTEM_HUD_H = 78
 PLANET_HUD_H = 86
+PLANET_RENDER_RADIUS = 62
 
 # --- Name generation ---
 # Star/system naming: catalog-style scientific designations
@@ -267,6 +268,30 @@ def draw_bg_stars(lcd, vx, vy):
                         lcd.pixel(px, py, c)
 
 
+def _draw_star_layer(lcd, vx, vy, cell, seed_off, chance_mod, color):
+    cx0 = vx // cell
+    cy0 = vy // cell
+    for ci in range((VIEW_W // cell) + 2):
+        for cj in range((VIEW_H // cell) + 2):
+            cx = cx0 + ci
+            cy = cy0 + cj
+            h = ((cx + seed_off) * 4253 + (cy + seed_off) * 7103) & 0xFFFF
+            if h % chance_mod != 0:
+                continue
+            sx = (h >> 3) % cell
+            sy = (h >> 9) % cell
+            px = (cx * cell + sx) - vx
+            py = (cy * cell + sy) - vy
+            if 0 <= px < VIEW_W and 0 <= py < VIEW_H:
+                lcd.pixel(px, py, WHITE if h % 17 == 0 else color)
+
+
+def draw_parallax_space(lcd, vx, vy):
+    _draw_star_layer(lcd, vx // 7, vy // 7, 52, 13, 3, GRAY)
+    _draw_star_layer(lcd, vx // 3, vy // 3, 34, 41, 4, GRAY)
+    draw_bg_stars(lcd, vx, vy)
+
+
 def _draw_viewfinder(lcd, cx, cy, color=GRAY):
     lcd.hline(cx - 8, cy, 4, color)
     lcd.hline(cx + 5, cy, 4, color)
@@ -283,6 +308,24 @@ def _draw_footer_bar(lcd, left_text, right_text="", color=GRAY):
     if right_text:
         right_text = fit_text(right_text, max(1, (VIEW_W // 16) - 1))
         lcd.text(right_text, right_x(right_text), y + 4, color)
+
+
+def _draw_overlay_window(lcd, x, y, w, title, lines):
+    h = 18 + (len(lines) * 12) + 6
+    lcd.fill_rect(x, y, w, h, WHITE)
+    lcd.rect(x, y, w, h, BLACK)
+    lcd.fill_rect(x + 1, y + 1, w - 2, 12, BLACK)
+    lcd.fill_rect(x + 4, y + 4, 4, 4, WHITE)
+    lcd.text(fit_text(title, max(1, (w // 8) - 4)), x + 12, y + 3, WHITE)
+    max_chars = max(1, (w // 8) - 2)
+    line_y = y + 18
+    for line in lines:
+        text = line
+        color = BLACK
+        if isinstance(line, tuple):
+            text, color = line
+        lcd.text(fit_text(text, max_chars), x + 4, line_y, color)
+        line_y += 12
 
 # --- Find nearest system to viewport center ---
 def find_nearest(systems, vx, vy):
@@ -303,7 +346,7 @@ def find_nearest(systems, vx, vy):
 # --- Draw galaxy map ---
 def draw_galaxy(lcd, systems, vx, vy, sel_idx):
     lcd.fill(BLACK)
-    draw_bg_stars(lcd, vx, vy)
+    draw_parallax_space(lcd, vx, vy)
 
     # draw systems
     for i in range(len(systems)):
@@ -326,23 +369,19 @@ def draw_galaxy(lcd, systems, vx, vy, sel_idx):
         lcd.text(str(sel_idx + 1) + "/" + str(len(systems)), 4, VIEW_H - FOOTER_BAR_H - 14, GRAY)
     _draw_footer_bar(lcd, A_LABEL + " back", B_LABEL + " enter")
 
-# --- Draw solar system view (full scene + bottom info hud) ---
+# --- Draw solar system view (full scene + floating scanner) ---
 INFO_X = 138
 
 def draw_system(lcd, system, planets, sel_planet):
     lcd.fill(BLACK)
-    hud_y = VIEW_H - SYSTEM_HUD_H
     scx = VIEW_W // 2
-    scy = max(36, (hud_y // 2) - 4)
+    scy = (VIEW_H // 2) + 10
     max_rx = planets[-1][0] + 4
     max_ry = planets[-1][1] + 4
-    orbit_scale = min((VIEW_W - 36) / float(max_rx * 2), (hud_y - 34) / float(max_ry * 2))
+    scene_h = VIEW_H - TITLE_BAR_H - FOOTER_BAR_H - 18
+    orbit_scale = min((VIEW_W - 30) / float(max_rx * 2), scene_h / float(max_ry * 2))
 
-    random.seed(system[2] + 5000)
-    for _ in range(54):
-        px = random.randint(0, VIEW_W - 1)
-        py = random.randint(TITLE_BAR_H, hud_y - 2)
-        lcd.pixel(px, py, GRAY)
+    draw_parallax_space(lcd, system[2] * 5, system[2] * 7)
 
     sun_color = system[4]
     sun_r = min(system[5] + 6, 11)
@@ -359,7 +398,7 @@ def draw_system(lcd, system, planets, sel_planet):
         px = scx + int((p[0] * orbit_scale) * math.cos(p[5]))
         py = scy + int((p[1] * orbit_scale) * math.sin(p[5]))
         px = max(6, min(VIEW_W - 7, px))
-        py = max(TITLE_BAR_H + 6, min(hud_y - 8, py))
+        py = max(TITLE_BAR_H + 6, min(VIEW_H - FOOTER_BAR_H - 8, py))
         lcd.ellipse(px, py, p[2] + 3, p[2] + 3, p[3], True)
         if i == sel_planet:
             lcd.ellipse(px, py, p[2] + 6, p[2] + 6, WHITE, False)
@@ -368,16 +407,8 @@ def draw_system(lcd, system, planets, sel_planet):
     title = fit_text(system[3], max(1, (VIEW_W // 8) - 2))
     lcd.text(title, center_x(title, VIEW_W), 5, YELLOW)
 
-    lcd.fill_rect(0, hud_y, VIEW_W, SYSTEM_HUD_H - FOOTER_BAR_H, BLACK)
-    lcd.hline(0, hud_y, VIEW_W, GRAY)
     if 0 <= sel_planet < len(planets):
         p = planets[sel_planet]
-        text_chars = max(1, (VIEW_W // 8) - 2)
-        planet_name = fit_text(p[4], text_chars - 5)
-        lcd.text(planet_name, 6, hud_y + 6, TEAL)
-        lcd.text(str(sel_planet + 1) + "/" + str(len(planets)), VIEW_W - 28, hud_y + 6, WHITE)
-        lcd.text(fit_text(p[11] + " / " + p[10], text_chars), 6, hud_y + 24, WHITE)
-
         m = p[7]
         if m < 10:
             ms = "0." + str(m) + "Me"
@@ -388,7 +419,19 @@ def draw_system(lcd, system, planets, sel_planet):
             rs = "0." + str(r) + "Re"
         else:
             rs = str(r // 10) + "." + str(r % 10) + "Re"
-        lcd.text(fit_text(ms + "  " + rs + "  " + str(p[8]) + "C", text_chars), 6, hud_y + 42, CYAN)
+        _draw_overlay_window(
+            lcd,
+            VIEW_W - 104,
+            TITLE_BAR_H + 8,
+            100,
+            "Scanner",
+            [
+                (str(sel_planet + 1) + "/" + str(len(planets)) + " " + p[4], TEAL),
+                p[11] + " / " + p[10],
+                (ms + "  " + rs, CYAN),
+                (str(p[8]) + "C", ORANGE),
+            ],
+        )
 
     _draw_footer_bar(lcd, A_LABEL + " back", B_LABEL + " land")
 
@@ -424,14 +467,16 @@ def gen_regions(planet):
         regions.append([a, d_frac, rsize, rcolor, rname, rtype, elev, rad, bio])
     return regions
 
-# --- Draw planet surface view (large planet + bottom scanner hud) ---
+# --- Draw planet surface view (large planet + floating scanner) ---
 def draw_planet(lcd, planet, regions, sel_region):
     lcd.fill(BLACK)
-    hud_y = VIEW_H - PLANET_HUD_H
-    pcx = VIEW_W // 2
-    pcy = max(42, (hud_y // 2) + 2)
+    seed = hash(planet[4]) & 0xFFFF
+    draw_parallax_space(lcd, seed, seed // 2)
+    hud_y = VIEW_H - FOOTER_BAR_H
+    pcx = (VIEW_W // 2) - 40
+    pcy = (VIEW_H // 2) + 6
     pcolor = planet[3]
-    pr = min((VIEW_W // 2) - 20, (hud_y // 2) - 12)
+    pr = min(PLANET_RENDER_RADIUS, (VIEW_W // 2) - 34, ((VIEW_H - TITLE_BAR_H - FOOTER_BAR_H) // 2) - 20)
     text_chars = max(1, (VIEW_W // 8) - 2)
 
     # atmosphere glow (outer halo)
@@ -455,13 +500,13 @@ def draw_planet(lcd, planet, regions, sel_region):
     if ptype == "Gas":
         # horizontal bands with varied colors
         band_colors = [pcolor, GRAY, ORANGE, YELLOW]
-        for band in range(-pr + 2, pr, 3):
+        for band in range(-pr + 2, pr, 4):
             bw = int(math.sqrt(max(0, pr * pr - band * band)))
             if bw > 2:
                 c = band_colors[(band // 3) % len(band_colors)]
                 lcd.hline(pcx - bw + 1, pcy + band, bw * 2 - 2, c)
         # swirl spots
-        for _ in range(6):
+        for _ in range(4):
             tx = random.randint(-pr // 2, pr // 2)
             bw = int(math.sqrt(max(0, (pr-3)*(pr-3) - tx*tx)))
             if bw > 0:
@@ -469,7 +514,7 @@ def draw_planet(lcd, planet, regions, sel_region):
                 lcd.ellipse(pcx + tx, pcy + ty, 2, 1, DKRED, True)
     elif ptype == "Ocean":
         # continent-like land patches
-        for _ in range(8):
+        for _ in range(6):
             tx = random.randint(-pr + 5, pr - 5)
             bw = int(math.sqrt(max(0, (pr-3)*(pr-3) - tx*tx)))
             if bw > 0:
@@ -477,7 +522,7 @@ def draw_planet(lcd, planet, regions, sel_region):
                 sz = random.randint(2, 4)
                 lcd.ellipse(pcx + tx, pcy + ty, sz, sz - 1, OLIVE, True)
         # scattered water highlights
-        for _ in range(30):
+        for _ in range(18):
             tx = random.randint(-pr + 3, pr - 3)
             bw = int(math.sqrt(max(0, (pr-2)*(pr-2) - tx*tx)))
             ty = random.randint(-bw, bw)
@@ -485,17 +530,17 @@ def draw_planet(lcd, planet, regions, sel_region):
             lcd.pixel(pcx + tx, pcy + ty, c)
     elif ptype == "Ice":
         # cracks and varied ice
-        for _ in range(35):
+        for _ in range(20):
             tx = random.randint(-pr + 3, pr - 3)
             bw = int(math.sqrt(max(0, (pr-2)*(pr-2) - tx*tx)))
             ty = random.randint(-bw, bw)
             c = WHITE if random.randint(0, 2) else CYAN
             lcd.pixel(pcx + tx, pcy + ty, c)
         # crack lines
-        for _ in range(3):
+        for _ in range(2):
             cx0 = random.randint(-pr // 2, pr // 2)
             cy0 = random.randint(-pr // 2, pr // 2)
-            for j in range(6):
+            for j in range(5):
                 nx = cx0 + random.randint(-1, 1)
                 ny = cy0 + random.randint(-1, 1)
                 if nx*nx + ny*ny < (pr-2)*(pr-2):
@@ -503,7 +548,7 @@ def draw_planet(lcd, planet, regions, sel_region):
                     cx0, cy0 = nx, ny
     elif ptype == "Lava":
         # dark crust with lava veins
-        for _ in range(30):
+        for _ in range(18):
             tx = random.randint(-pr + 3, pr - 3)
             bw = int(math.sqrt(max(0, (pr-2)*(pr-2) - tx*tx)))
             if bw > 0:
@@ -511,16 +556,16 @@ def draw_planet(lcd, planet, regions, sel_region):
                 c = DKRED if random.randint(0, 1) else GRAY
                 lcd.pixel(pcx + tx, pcy + ty, c)
         # bright lava flows
-        for _ in range(4):
+        for _ in range(3):
             cx0 = random.randint(-pr // 2, pr // 2)
             cy0 = random.randint(-pr // 2, pr // 2)
-            for j in range(8):
+            for j in range(6):
                 nx = cx0 + random.randint(-1, 1)
                 ny = cy0 + random.randint(-1, 1)
                 if nx*nx + ny*ny < (pr-2)*(pr-2):
                     lcd.pixel(pcx + nx, pcy + ny, ORANGE)
                     cx0, cy0 = nx, ny
-        for _ in range(8):
+        for _ in range(5):
             tx = random.randint(-pr + 4, pr - 4)
             bw = int(math.sqrt(max(0, (pr-3)*(pr-3) - tx*tx)))
             if bw > 0:
@@ -528,7 +573,7 @@ def draw_planet(lcd, planet, regions, sel_region):
                 lcd.pixel(pcx + tx, pcy + ty, YELLOW)
     elif ptype == "Desert":
         # dunes and rocky outcrops
-        for _ in range(25):
+        for _ in range(16):
             tx = random.randint(-pr + 3, pr - 3)
             bw = int(math.sqrt(max(0, (pr-2)*(pr-2) - tx*tx)))
             if bw > 0:
@@ -536,7 +581,7 @@ def draw_planet(lcd, planet, regions, sel_region):
                 c = YELLOW if random.randint(0, 2) else ORANGE
                 lcd.pixel(pcx + tx, pcy + ty, c)
         # rocky patches
-        for _ in range(5):
+        for _ in range(3):
             tx = random.randint(-pr + 5, pr - 5)
             bw = int(math.sqrt(max(0, (pr-4)*(pr-4) - tx*tx)))
             if bw > 0:
@@ -544,7 +589,7 @@ def draw_planet(lcd, planet, regions, sel_region):
                 lcd.ellipse(pcx + tx, pcy + ty, 2, 1, GRAY, True)
     else:
         # Rocky — craters and varied terrain
-        for _ in range(30):
+        for _ in range(18):
             tx = random.randint(-pr + 3, pr - 3)
             bw = int(math.sqrt(max(0, (pr-2)*(pr-2) - tx*tx)))
             if bw > 0:
@@ -552,7 +597,7 @@ def draw_planet(lcd, planet, regions, sel_region):
                 c = GRAY if random.randint(0, 1) else DKRED
                 lcd.pixel(pcx + tx, pcy + ty, c)
         # crater rings
-        for _ in range(3):
+        for _ in range(2):
             tx = random.randint(-pr // 2, pr // 2)
             bw = int(math.sqrt(max(0, (pr-4)*(pr-4) - tx*tx)))
             if bw > 0:
@@ -594,20 +639,29 @@ def draw_planet(lcd, planet, regions, sel_region):
     title = fit_text(planet[4], max(1, (VIEW_W // 8) - 2))
     lcd.text(title, center_x(title, VIEW_W), 5, TEAL)
 
-    lcd.fill_rect(0, hud_y, VIEW_W, PLANET_HUD_H - FOOTER_BAR_H, BLACK)
-    lcd.hline(0, hud_y, VIEW_W, GRAY)
-    lcd.text(fit_text(planet[11] + " / " + planet[10], text_chars), 6, hud_y + 6, GRAY)
-
     if 0 <= sel_region < len(regions):
         rg = regions[sel_region]
-        lcd.text(fit_text(rg[4], text_chars), 6, hud_y + 24, rg[3])
         e = rg[6]
         if e >= 0:
             es = "+" + str(e) + "m"
         else:
             es = str(e) + "m"
-        stats = es + "  Rad " + str(rg[7]) + "%  Bio " + str(rg[8]) + "%"
-        lcd.text(fit_text(stats, text_chars), 6, hud_y + 42, CYAN)
+        overlay_lines = [
+            (planet[11] + " / " + planet[10], GRAY),
+            (rg[4], rg[3]),
+            rg[5],
+            (es, CYAN),
+            ("Rad " + str(rg[7]) + "%", ORANGE),
+            ("Bio " + str(rg[8]) + "%", TEAL),
+        ]
+        _draw_overlay_window(
+            lcd,
+            VIEW_W - 104,
+            TITLE_BAR_H + 8,
+            100,
+            "Region",
+            overlay_lines,
+        )
 
     _draw_footer_bar(lcd, A_LABEL + " orbit", "L/R region")
 
@@ -695,7 +749,7 @@ def find_nearest_gal(galaxies, vx, vy):
 # --- Draw galaxy selector (scrollable 2D view) ---
 def draw_galaxy_sel(lcd, galaxies, vx, vy, sel_gal):
     lcd.fill(BLACK)
-    draw_bg_stars(lcd, vx + 5000, vy + 5000)  # offset so stars differ from galaxy map
+    draw_parallax_space(lcd, vx + 5000, vy + 5000)  # offset so stars differ from galaxy map
 
     for i in range(len(galaxies)):
         g = galaxies[i]

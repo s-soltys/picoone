@@ -72,7 +72,7 @@ class GalaxyApp:
     def _draw_splash(self, lcd):
         tick = time.ticks_ms()
         lcd.fill(BLACK)
-        galaxy.draw_bg_stars(lcd, (tick // 7) % 400, (tick // 11) % 300)
+        galaxy.draw_parallax_space(lcd, (tick // 5) % 900, (tick // 8) % 700)
         galaxy._draw_mini_galaxy(lcd, 56, 116, 0, CYAN, False)
         galaxy._draw_mini_galaxy(lcd, 120, 86, 1, GOLD, False)
         galaxy._draw_mini_galaxy(lcd, 184, 126, 4, YELLOW, False)

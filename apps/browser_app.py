@@ -19,6 +19,7 @@ WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
 BOOK_SEARCH_URL = "https://openlibrary.org/search.json"
 RATES_URL = "https://api.frankfurter.dev/v1/latest"
 BREWERY_URL = "https://api.openbrewerydb.org/v1/breweries"
+BOOK_DETAIL_URL = "https://openlibrary.org"
 
 WEATHER_LABELS = {
     0: "Clear",
@@ -66,14 +67,29 @@ def _first_text(value, fallback):
     return fallback
 
 
-def _page(title, url, deck, source, lines):
+def _description_text(value, fallback="No description"):
+    if isinstance(value, dict):
+        value = value.get("value")
+    if value:
+        text = str(value)
+        return text.replace("\n", " ")
+    return fallback
+
+
+def _page(title, url, deck, source, lines, items=None):
     return {
         "title": title,
         "url": url,
         "deck": deck,
         "source": source,
         "lines": lines,
+        "items": items or [],
+        "cursor": 0,
+        "scroll": 0,
         "loaded_ms": time.ticks_ms(),
+        "cache_key": "",
+        "root_index": 0,
+        "loader": None,
     }
 
 
@@ -121,9 +137,7 @@ def _load_weatherwire():
                 str(_safe_int(current.get("temperature_2m"))) + "C " + _weather_label(current_code),
                 "FEELS " + str(_safe_int(current.get("apparent_temperature"))) + "C",
                 "WIND " + str(_safe_int(current.get("wind_speed_10m"))) + " km/h",
-                "",
-                "TODAY HI " + str(high) + "C",
-                "TODAY LO " + str(low) + "C",
+                "HI " + str(high) + "C / LO " + str(low) + "C",
                 "OUTLOOK " + _weather_label(daily_code),
             ],
         ),
@@ -135,8 +149,8 @@ def _load_openshelf():
         BOOK_SEARCH_URL,
         {
             "q": "science fiction",
-            "fields": "title,author_name,first_publish_year",
-            "limit": 3,
+            "fields": "title,author_name,first_publish_year,key,subject,edition_count",
+            "limit": 4,
             "lang": "en",
         },
     )
@@ -149,17 +163,28 @@ def _load_openshelf():
     if not docs:
         return {"ok": False, "error": "no books returned"}
 
-    lines = ["SCI-FI PICKS", ""]
-    for index in range(min(3, len(docs))):
+    items = []
+    for index in range(min(4, len(docs))):
         doc = docs[index] or {}
         title = str(doc.get("title") or "Untitled")
         author = _first_text(doc.get("author_name"), "Anon")
         year = doc.get("first_publish_year")
-        lines.append(str(index + 1) + ". " + title)
         meta = author
         if year:
             meta += " " + str(year)
-        lines.append(meta)
+        work_key = str(doc.get("key") or "")
+        subject = _first_text(doc.get("subject"), "science fiction")
+        items.append({
+            "action": "book-detail",
+            "label": title,
+            "meta": meta,
+            "work_key": work_key,
+            "title": title,
+            "author": author,
+            "year": year,
+            "subject": subject,
+            "cache_key": "book:" + (work_key or title),
+        })
 
     return {
         "ok": True,
@@ -169,9 +194,85 @@ def _load_openshelf():
             "https://openshelf.pico/trending/scifi",
             "Book picks from a public catalog",
             "Open Library",
+            [
+                "SCI-FI PICKS",
+                "Open a title for notes",
+            ],
+            items,
+        ),
+    }
+
+
+def _load_book_detail(item):
+    title = item.get("title") or "Untitled"
+    author = item.get("author") or "Anon"
+    year = item.get("year")
+    work_key = item.get("work_key") or ""
+    fallback_lines = [
+        "AUTHOR " + author,
+        "YEAR " + (str(year) if year else "?"),
+        "TOPIC " + item.get("subject", "science fiction"),
+        "",
+        "No extra notes",
+    ]
+
+    if not work_key.startswith("/works/"):
+        return {
+            "ok": True,
+            "error": "",
+            "page": _page(
+                title,
+                "https://openlibrary.org/",
+                "Open Library work card",
+                "Open Library",
+                fallback_lines,
+            ),
+        }
+
+    result = get_json(BOOK_DETAIL_URL + work_key + ".json", 5)
+    if not result["ok"]:
+        return {"ok": False, "error": result["error"] or "book detail failed"}
+
+    data = result["data"] or {}
+    description = _description_text(data.get("description"))
+    subjects = data.get("subjects") or []
+    subject_text = _first_text(subjects, item.get("subject", "science fiction"))
+    lines = [
+        "AUTHOR " + author,
+        "YEAR " + (str(year) if year else "?"),
+        "TOPIC " + subject_text,
+        "",
+        fit_text(description, 28),
+    ]
+    if len(description) > 28:
+        lines.append(fit_text(description[28:], 28))
+
+    return {
+        "ok": True,
+        "error": "",
+        "page": _page(
+            title,
+            BOOK_DETAIL_URL + work_key,
+            "Open Library work card",
+            "Open Library",
             lines,
         ),
     }
+
+
+def _rate_detail_page(code, rate, date):
+    return _page(
+        code + " Board",
+        "https://rateboard.pico/markets/usd/" + code.lower(),
+        "USD rate drill-down",
+        "Frankfurter",
+        [
+            "DATE " + str(date or "?"),
+            "1 USD = " + str(rate),
+            "10 USD = " + "{:.2f}".format(float(rate) * 10),
+            "100 USD = " + "{:.2f}".format(float(rate) * 100),
+        ],
+    )
 
 
 def _load_rateboard():
@@ -191,19 +292,18 @@ def _load_rateboard():
     if not rates:
         return {"ok": False, "error": "rates payload missing values"}
 
-    lines = [
-        "USD WATCH",
-        "DATE " + str(data.get("date") or "?"),
-        "",
-        "EUR " + str(rates.get("EUR", "?")),
-        "GBP " + str(rates.get("GBP", "?")),
-        "JPY " + str(rates.get("JPY", "?")),
-        "",
-    ]
-
-    eur = rates.get("EUR")
-    if eur is not None:
-        lines.append("100 USD = " + "{:.2f}".format(float(eur) * 100) + " EUR")
+    date = data.get("date") or "?"
+    items = []
+    for code in ("EUR", "GBP", "JPY"):
+        if code not in rates:
+            continue
+        items.append({
+            "action": "static-page",
+            "label": code + " " + str(rates[code]),
+            "meta": "Open rate sheet",
+            "cache_key": "rate:" + code,
+            "page": _rate_detail_page(code, rates[code], date),
+        })
 
     return {
         "ok": True,
@@ -213,9 +313,36 @@ def _load_rateboard():
             "https://rateboard.pico/markets/usd",
             "Small foreign-exchange blotter",
             "Frankfurter",
-            lines,
+            [
+                "USD WATCH",
+                "DATE " + str(date),
+                "Pick a currency board",
+            ],
+            items,
         ),
     }
+
+
+def _brewery_detail_page(item):
+    lines = [
+        fit_text(_upper_words(item.get("brewery_type") or "spot"), 28),
+        fit_text((item.get("city") or "Portland") + ", " + (item.get("state") or "OR"), 28),
+        fit_text(item.get("street") or "No street listed", 28),
+    ]
+    website = item.get("website_url") or ""
+    if website:
+        lines.append(fit_text(website.replace("https://", "").replace("http://", ""), 28))
+    phone = item.get("phone") or ""
+    if phone:
+        lines.append("PHONE " + fit_text(phone, 22))
+
+    return _page(
+        item.get("name") or "Brewery",
+        "https://taplist.pico/" + str(item.get("city") or "portland").lower(),
+        "Brewery detail card",
+        "Open Brewery DB",
+        lines,
+    )
 
 
 def _load_taplist():
@@ -225,7 +352,7 @@ def _load_taplist():
             "by_city": "portland",
             "by_state": "oregon",
             "by_type": "micro",
-            "per_page": 3,
+            "per_page": 4,
         },
     )
     result = get_json(url, 5)
@@ -236,14 +363,16 @@ def _load_taplist():
     if not data:
         return {"ok": False, "error": "no breweries returned"}
 
-    lines = ["PORTLAND POURS", ""]
-    for index in range(min(3, len(data))):
+    items = []
+    for index in range(min(4, len(data))):
         brewery = data[index] or {}
-        name = str(brewery.get("name") or "Untitled")
-        brew_type = _upper_words(brewery.get("brewery_type") or "spot")
-        city = str(brewery.get("city") or "Portland")
-        lines.append(str(index + 1) + ". " + name)
-        lines.append(brew_type + " / " + city)
+        items.append({
+            "action": "static-page",
+            "label": str(brewery.get("name") or "Untitled"),
+            "meta": _upper_words(brewery.get("brewery_type") or "spot") + " / " + str(brewery.get("city") or "Portland"),
+            "cache_key": "brewery:" + str(brewery.get("id") or brewery.get("name") or index),
+            "page": _brewery_detail_page(brewery),
+        })
 
     return {
         "ok": True,
@@ -253,7 +382,11 @@ def _load_taplist():
             "https://taplist.pico/portland",
             "Portland microbrew guide",
             "Open Brewery DB",
-            lines,
+            [
+                "PORTLAND POURS",
+                "Open a place card",
+            ],
+            items,
         ),
     }
 
@@ -308,6 +441,8 @@ class BrowserApp:
         self.cache = {}
         self.page_notice = ""
         self.page_error = ""
+        self.page_stack = []
+        self.pending_request = None
 
     def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
         ink = BLACK if monochrome and selected else (WHITE if monochrome else CYAN)
@@ -326,19 +461,95 @@ class BrowserApp:
         self.loading_drawn = False
         self.page_notice = ""
         self.page_error = ""
+        self.page_stack = []
+        self.pending_request = None
 
     def _bookmark(self, index=None):
         if index is None:
             index = self.selected
         return BOOKMARKS[index]
 
+    def _current_page(self):
+        if not self.page_stack:
+            return None
+        return self.page_stack[-1]
+
     def _move_selection(self, delta):
         self.selected = (self.selected + delta) % len(BOOKMARKS)
 
+    def _root_cache_key(self, index):
+        return "bookmark:" + str(index)
+
+    def _attach_page_meta(self, page, cache_key, root_index, loader):
+        page["cache_key"] = cache_key
+        page["root_index"] = root_index
+        page["loader"] = loader
+        if "cursor" not in page:
+            page["cursor"] = 0
+        if "scroll" not in page:
+            page["scroll"] = 0
+        return page
+
+    def _show_cached_page(self, cache_key, push=False):
+        page = self.cache.get(cache_key)
+        if page is None:
+            return False
+        if push:
+            self.page_stack.append(page)
+        else:
+            self.page_stack = [page]
+        self.state = "page"
+        self.pending_request = None
+        return True
+
+    def _queue_request(self, request):
+        self.pending_request = request
+        self.page_notice = ""
+        self.page_error = ""
+        self.state = "loading"
+        self.loading_drawn = False
+
+    def _start_root_loading(self, index, force_refresh=False):
+        self.page_index = index
+        self.selected = index
+        cache_key = self._root_cache_key(index)
+        if not force_refresh and self._show_cached_page(cache_key, False):
+            return
+
+        bookmark = self._bookmark(index)
+        self._queue_request({
+            "kind": "root",
+            "index": index,
+            "title": bookmark["title"],
+            "url": bookmark["host"] + bookmark["path"],
+            "cache_key": cache_key,
+            "push": False,
+            "loader": {"kind": "bookmark", "index": index},
+        })
+
+    def _start_item_loading(self, item, force_refresh=False):
+        cache_key = item.get("cache_key", "")
+        if cache_key and not force_refresh and self._show_cached_page(cache_key, True):
+            return
+
+        self._queue_request({
+            "kind": "item",
+            "item": item,
+            "title": item.get("label", "Page"),
+            "url": item.get("url", self._current_page()["url"] if self._current_page() else "about:blank"),
+            "cache_key": cache_key,
+            "push": True,
+            "loader": {"kind": "item", "item": item},
+        })
+
     def _browse_adjacent(self, delta):
-        next_index = (self.page_index + delta) % len(BOOKMARKS)
-        self.selected = next_index
-        self._start_loading(next_index)
+        root_index = self.page_index
+        current = self._current_page()
+        if current is not None:
+            root_index = current.get("root_index", root_index)
+        next_index = (root_index + delta) % len(BOOKMARKS)
+        self.page_stack = []
+        self._start_root_loading(next_index)
 
     def _loaded_text(self, loaded_ms):
         if loaded_ms is None:
@@ -353,6 +564,26 @@ class BrowserApp:
     def _address_bar(self, lcd, address):
         lcd.rect(WINDOW_CONTENT_X, WINDOW_CONTENT_Y, WINDOW_CONTENT_W, 14, BLACK)
         lcd.text(fit_text(address, WINDOW_TEXT_CHARS - 1), WINDOW_CONTENT_X + 4, WINDOW_CONTENT_Y + 3, BLACK)
+
+    def _page_item_layout(self, page):
+        summary_lines = min(2, len(page.get("lines") or []))
+        items_y = WINDOW_CONTENT_Y + 58 + (summary_lines * 12)
+        visible_rows = max(1, (WINDOW_CONTENT_BOTTOM - items_y - 18) // 22)
+        return items_y, visible_rows
+
+    def _move_page_cursor(self, delta):
+        page = self._current_page()
+        if page is None or not page.get("items"):
+            return
+
+        items = page["items"]
+        page["cursor"] = (page.get("cursor", 0) + delta) % len(items)
+        items_y, visible_rows = self._page_item_layout(page)
+        del items_y
+        if page["cursor"] < page.get("scroll", 0):
+            page["scroll"] = page["cursor"]
+        if page["cursor"] >= page.get("scroll", 0) + visible_rows:
+            page["scroll"] = page["cursor"] - (visible_rows - 1)
 
     def _draw_bookmarks(self, lcd, runtime):
         draw_window_shell(lcd, "Browser", runtime.wifi.status())
@@ -375,18 +606,21 @@ class BrowserApp:
         draw_window_footer_actions(lcd, X_LABEL + "/" + Y_LABEL + " pick", B_LABEL + " open", BLACK)
 
     def _draw_loading(self, lcd, runtime):
-        bookmark = self._bookmark(self.page_index)
+        request = self.pending_request or {}
         draw_window_shell(lcd, "Browser", runtime.wifi.status())
-        self._address_bar(lcd, bookmark["host"] + bookmark["path"])
+        self._address_bar(lcd, request.get("url", "about:blank"))
         lcd.fill_rect(WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 22, WINDOW_CONTENT_W, 14, BLACK)
-        lcd.text(fit_text(bookmark["title"], 16), WINDOW_CONTENT_X + 4, WINDOW_CONTENT_Y + 25, WHITE)
-        lcd.text(fit_text(bookmark["caption"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 50, BLACK)
-        lcd.text("Fetching live page", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 76, BLACK)
-        lcd.text("Source " + bookmark["source"], WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 94, GRAY)
+        lcd.text(fit_text(request.get("title", "Loading"), 16), WINDOW_CONTENT_X + 4, WINDOW_CONTENT_Y + 25, WHITE)
+        lcd.text("Fetching page", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 50, BLACK)
+        lcd.text("Please wait", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 68, BLACK)
+        lcd.text("A back / B stop", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 92, GRAY)
         draw_window_footer_actions(lcd, X_LABEL + "/" + Y_LABEL + " site", B_LABEL + " stop", BLACK)
 
     def _draw_page(self, lcd, runtime):
-        page = self.cache[self.page_index]
+        page = self._current_page()
+        if page is None:
+            self._draw_bookmarks(lcd, runtime)
+            return
 
         draw_window_shell(lcd, "Browser", runtime.wifi.status())
         self._address_bar(lcd, page["url"])
@@ -394,76 +628,135 @@ class BrowserApp:
         lcd.text(fit_text(page["title"], 14), WINDOW_CONTENT_X + 4, WINDOW_CONTENT_Y + 25, WHITE)
         lcd.text(fit_text(page["deck"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 42, BLACK)
 
-        y = WINDOW_CONTENT_Y + 60
-        limit_y = WINDOW_CONTENT_BOTTOM - 18
-        for line in page["lines"]:
-            if y > limit_y:
-                break
-            color = GRAY if not line else BLACK
-            lcd.text(fit_text(line, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y, color)
-            y += 12
+        y = WINDOW_CONTENT_Y + 56
+        lines = page.get("lines") or []
+        items = page.get("items") or []
+        if items:
+            for index in range(min(2, len(lines))):
+                line = lines[index]
+                lcd.text(fit_text(line, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y, GRAY if not line else BLACK)
+                y += 12
 
-        status_line = page["source"] + " / " + self._loaded_text(page.get("loaded_ms"))
+            items_y, visible_rows = self._page_item_layout(page)
+            end = min(len(items), page.get("scroll", 0) + visible_rows)
+            for index in range(page.get("scroll", 0), end):
+                item = items[index]
+                selected = index == page.get("cursor", 0)
+                if selected:
+                    lcd.fill_rect(WINDOW_CONTENT_X, items_y - 2, WINDOW_CONTENT_W, 20, BLACK)
+                label_color = WHITE if selected else BLACK
+                meta_color = WHITE if selected else GRAY
+                lcd.text(fit_text(item.get("label", "Item"), WINDOW_TEXT_CHARS - 1), WINDOW_CONTENT_X + 2, items_y, label_color)
+                lcd.text(fit_text(item.get("meta", ""), WINDOW_TEXT_CHARS - 1), WINDOW_CONTENT_X + 2, items_y + 10, meta_color)
+                items_y += 22
+        else:
+            limit_y = WINDOW_CONTENT_BOTTOM - 18
+            for line in lines:
+                if y > limit_y:
+                    break
+                lcd.text(fit_text(line, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y, GRAY if not line else BLACK)
+                y += 12
+
         if self.page_notice:
             status_line = self.page_notice
         elif self.page_error:
             status_line = "stale: " + self.page_error
+        else:
+            status_line = page["source"] + " / " + self._loaded_text(page.get("loaded_ms"))
+            if items:
+                status_line = "U/D pick / B open"
         lcd.text(fit_text(status_line, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_BOTTOM - 10, GRAY)
-        draw_window_footer_actions(lcd, X_LABEL + "/" + Y_LABEL + " site", B_LABEL + " reload", BLACK)
+
+        back_text = A_LABEL + " back" if len(self.page_stack) > 1 else A_LABEL + " list"
+        action_text = B_LABEL + " open" if items else B_LABEL + " reload"
+        draw_window_footer_actions(lcd, back_text, action_text, BLACK)
 
     def _draw_error(self, lcd, runtime):
-        bookmark = self._bookmark(self.page_index)
+        request = self.pending_request or {}
         draw_window_shell(lcd, "Browser", runtime.wifi.status())
-        self._address_bar(lcd, bookmark["host"] + bookmark["path"])
+        self._address_bar(lcd, request.get("url", "about:blank"))
         lcd.text("Page unavailable", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 28, BLACK)
         lcd.text(fit_text(self.page_error or "Browser error", WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 52, BLACK)
         lcd.text("Open Wi-Fi first", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 76, GRAY)
-        draw_window_footer_actions(lcd, X_LABEL + "/" + Y_LABEL + " site", B_LABEL + " retry", BLACK)
+        draw_window_footer_actions(lcd, A_LABEL + " back", B_LABEL + " retry", BLACK)
 
-    def _start_loading(self, index, force_refresh=False):
-        self.page_index = index
-        self.page_notice = ""
+    def _load_item_request(self, item):
+        action = item.get("action")
+        if action == "book-detail":
+            return _load_book_detail(item)
+        if action == "static-page":
+            return {"ok": True, "error": "", "page": item.get("page")}
+        return {"ok": False, "error": "page action missing"}
+
+    def _use_stale_cache(self, request, notice):
+        cache_key = request.get("cache_key", "")
+        if not cache_key:
+            return False
+        if not self._show_cached_page(cache_key, request.get("push", False)):
+            return False
+        self.page_notice = notice
         self.page_error = ""
-        if not force_refresh and index in self.cache:
-            self.state = "page"
-            return
-        self.state = "loading"
-        self.loading_drawn = False
+        return True
 
-    def _load_page(self, runtime):
+    def _load_request(self, runtime):
+        request = self.pending_request
+        if request is None:
+            return
+
         status = runtime.wifi.status()
         if not status["supported"]:
+            if self._use_stale_cache(request, "offline cache"):
+                return
             self.page_error = "No network module"
-            if self.page_index in self.cache:
-                self.page_notice = "offline cache"
-                self.state = "page"
-            else:
-                self.state = "error"
+            self.state = "error"
             return
 
         if not status["connected"]:
+            if self._use_stale_cache(request, "offline cache"):
+                return
             self.page_error = "connect Wi-Fi first"
-            if self.page_index in self.cache:
-                self.page_notice = "offline cache"
-                self.state = "page"
-            else:
-                self.state = "error"
+            self.state = "error"
             return
 
-        result = self._bookmark(self.page_index)["loader"]()
+        if request["kind"] == "root":
+            result = self._bookmark(request["index"])["loader"]()
+        else:
+            result = self._load_item_request(request["item"])
+
         if result["ok"]:
-            self.cache[self.page_index] = result["page"]
+            page = result["page"]
+            page = self._attach_page_meta(page, request.get("cache_key", ""), self.page_index, request.get("loader"))
+            cache_key = request.get("cache_key", "")
+            if cache_key:
+                self.cache[cache_key] = page
+            if request.get("push"):
+                self.page_stack.append(page)
+            else:
+                self.page_stack = [page]
             self.page_notice = ""
             self.page_error = ""
+            self.pending_request = None
             self.state = "page"
             return
 
         self.page_error = result["error"] or "fetch failed"
-        if self.page_index in self.cache:
-            self.page_notice = "stale cache"
-            self.state = "page"
-        else:
-            self.state = "error"
+        if self._use_stale_cache(request, "stale cache"):
+            return
+        self.state = "error"
+
+    def _reload_current_page(self):
+        page = self._current_page()
+        if page is None:
+            self._start_root_loading(self.selected, True)
+            return
+
+        loader = page.get("loader") or {}
+        if loader.get("kind") == "bookmark":
+            self.page_stack = []
+            self._start_root_loading(loader.get("index", self.page_index), True)
+        elif loader.get("kind") == "item":
+            self.page_stack.pop()
+            self._start_item_loading(loader.get("item") or {}, True)
 
     def step(self, runtime):
         buttons = runtime.buttons
@@ -481,77 +774,95 @@ class BrowserApp:
             if buttons.pressed("Y"):
                 self._move_selection(1)
             if buttons.pressed("B"):
-                self._start_loading(self.selected)
+                self._start_root_loading(self.selected)
             self._draw_bookmarks(lcd, runtime)
             return None
 
         if self.state == "loading":
             if buttons.pressed("X"):
+                self.page_stack = []
                 self._browse_adjacent(-1)
                 self._draw_loading(lcd, runtime)
                 return None
             if buttons.pressed("Y"):
+                self.page_stack = []
                 self._browse_adjacent(1)
                 self._draw_loading(lcd, runtime)
                 return None
-            if buttons.pressed("A"):
-                self.state = "bookmarks"
-                self.selected = self.page_index
-                self._draw_bookmarks(lcd, runtime)
-                return None
-            if buttons.pressed("B"):
-                if self.page_index in self.cache:
+            if buttons.pressed("A") or buttons.pressed("B"):
+                self.pending_request = None
+                if self.page_stack:
                     self.state = "page"
-                    self.page_notice = "cached page"
                     self._draw_page(lcd, runtime)
                 else:
                     self.state = "bookmarks"
-                    self.selected = self.page_index
                     self._draw_bookmarks(lcd, runtime)
                 return None
             if not self.loading_drawn:
                 self.loading_drawn = True
                 self._draw_loading(lcd, runtime)
                 return None
-            self._load_page(runtime)
+            self._load_request(runtime)
         elif self.state == "error":
             if buttons.pressed("X"):
+                self.page_stack = []
                 self._browse_adjacent(-1)
                 self._draw_loading(lcd, runtime)
                 return None
             if buttons.pressed("Y"):
+                self.page_stack = []
                 self._browse_adjacent(1)
                 self._draw_loading(lcd, runtime)
                 return None
             if buttons.pressed("A"):
-                self.state = "bookmarks"
-                self.selected = self.page_index
-                self._draw_bookmarks(lcd, runtime)
+                if self.page_stack:
+                    self.state = "page"
+                    self.pending_request = None
+                    self._draw_page(lcd, runtime)
+                else:
+                    self.state = "bookmarks"
+                    self.pending_request = None
+                    self._draw_bookmarks(lcd, runtime)
                 return None
-            elif buttons.pressed("B"):
-                self._start_loading(self.page_index, True)
+            if buttons.pressed("B"):
+                self.state = "loading"
+                self.loading_drawn = False
                 self._draw_loading(lcd, runtime)
                 return None
             self._draw_error(lcd, runtime)
             return None
         else:
+            page = self._current_page()
             if buttons.pressed("X"):
+                self.page_stack = []
                 self._browse_adjacent(-1)
                 self._draw_loading(lcd, runtime)
                 return None
             if buttons.pressed("Y"):
+                self.page_stack = []
                 self._browse_adjacent(1)
                 self._draw_loading(lcd, runtime)
                 return None
+            if buttons.repeat("UP", 180, 100):
+                self._move_page_cursor(-1)
+            if buttons.repeat("DOWN", 180, 100):
+                self._move_page_cursor(1)
             if buttons.pressed("A"):
-                self.state = "bookmarks"
-                self.selected = self.page_index
                 self.page_notice = ""
                 self.page_error = ""
-                self._draw_bookmarks(lcd, runtime)
-                return None
+                if len(self.page_stack) > 1:
+                    self.page_stack.pop()
+                else:
+                    self.state = "bookmarks"
+                    self._draw_bookmarks(lcd, runtime)
+                    return None
             if buttons.pressed("B"):
-                self._start_loading(self.page_index, True)
+                if page and page.get("items"):
+                    item = page["items"][page.get("cursor", 0)]
+                    self._start_item_loading(item)
+                    self._draw_loading(lcd, runtime)
+                    return None
+                self._reload_current_page()
                 self._draw_loading(lcd, runtime)
                 return None
             self._draw_page(lcd, runtime)

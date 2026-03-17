@@ -242,8 +242,6 @@ def draw_menu_dropdown(lcd, x, y, w, items, selected_index=None):
 
 def draw_desktop_background(lcd):
     lcd.fill(WHITE)
-    for y in range(DESKTOP_TOP + 10, SCREEN_H, 18):
-        lcd.hline(0, y, SCREEN_W, GRAY)
 
 
 def draw_window_shell(lcd, title, wifi_status=None):

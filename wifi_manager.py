@@ -1,20 +1,53 @@
 import network
 import json
 
-PROFILES_FILE = "wifi_profiles.json"
+PROFILES_FILE = "wifi_profiles.txt"
+LEGACY_PROFILES_FILE = "wifi_profiles.json"
+
+
+def _normalize_profiles(profiles):
+    out = []
+    seen = set()
+    for profile in profiles:
+        if not isinstance(profile, dict):
+            continue
+        ssid = str(profile.get("ssid", "")).strip()
+        if not ssid or ssid in seen:
+            continue
+        seen.add(ssid)
+        out.append({"ssid": ssid, "password": str(profile.get("password", ""))})
+    return out
+
+
+def _ensure_profiles_file():
+    try:
+        with open(PROFILES_FILE, "r") as f:
+            raw = f.read()
+        if raw.strip():
+            return
+    except Exception:
+        pass
+    profiles = []
+    try:
+        with open(LEGACY_PROFILES_FILE, "r") as f:
+            profiles = json.loads(f.read())
+    except Exception:
+        profiles = []
+    _save_profiles(_normalize_profiles(profiles))
 
 
 def _load_profiles():
     try:
+        _ensure_profiles_file()
         with open(PROFILES_FILE, "r") as f:
-            return json.loads(f.read())
+            return _normalize_profiles(json.loads(f.read()))
     except Exception:
         return []
 
 
 def _save_profiles(profiles):
     with open(PROFILES_FILE, "w") as f:
-        f.write(json.dumps(profiles))
+        f.write(json.dumps(_normalize_profiles(profiles)))
 
 
 def get_profiles():
@@ -53,6 +86,10 @@ def move_profile(index, direction):
 
 
 def scan_networks():
+    profiles = _load_profiles()
+    priority = {}
+    for i, profile in enumerate(profiles):
+        priority[profile["ssid"]] = i
     wlan = network.WLAN(network.STA_IF)
     was_active = wlan.active()
     if not was_active:
@@ -70,8 +107,15 @@ def scan_networks():
         seen.add(ssid)
         rssi = r[3]
         auth = r[4]  # 0=open, others=secured
-        networks.append({"ssid": ssid, "rssi": rssi, "secure": auth != 0})
-    networks.sort(key=lambda n: n["rssi"], reverse=True)
+        networks.append(
+            {
+                "ssid": ssid,
+                "rssi": rssi,
+                "secure": auth != 0,
+                "saved": ssid in priority,
+            }
+        )
+    networks.sort(key=lambda n: (0, priority[n["ssid"]]) if n["saved"] else (1, -n["rssi"]))
     return networks
 
 

@@ -30,12 +30,17 @@ def get_info():
     wlan = network.WLAN(network.STA_IF)
     rssi = 0
     ip = "N/A"
+    ssid = "N/A"
     try:
         rssi = wlan.status("rssi")
     except Exception:
         pass
     try:
         ip = wlan.ifconfig()[0]
+    except Exception:
+        pass
+    try:
+        ssid = wlan.config("essid")
     except Exception:
         pass
 
@@ -46,6 +51,7 @@ def get_info():
         "ram_total_kb": total // 1024,
         "ram_pct": (alloc * 100) // total if total else 0,
         "uptime": "{}h {:02d}m {:02d}s".format(hours, mins, secs),
+        "ssid": ssid,
         "rssi": rssi,
         "ip": ip,
     }

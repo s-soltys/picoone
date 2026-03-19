@@ -2,30 +2,51 @@ import network
 from machine import Pin
 from utime import sleep_ms
 import _thread
-import secrets
 from led_patterns import LEDController
 from web_server import start_server, handle_client
-import uptime
 import morse
-import reaction
-import pomodoro
+from wifi_manager import get_profiles, add_profile
 
 # ---------------------------------------------------------------------------
 # Wi-Fi
 # ---------------------------------------------------------------------------
 pin = Pin("LED", Pin.OUT)
 
+
+def _wifi_targets():
+    targets = []
+    seen = set()
+    for profile in get_profiles():
+        ssid = profile.get("ssid", "").strip()
+        if not ssid or ssid in seen:
+            continue
+        seen.add(ssid)
+        targets.append((ssid, profile.get("password", "")))
+    return targets
+
 def connect_wifi():
     network.hostname("picoone")
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     if not wlan.isconnected():
-        print("Connecting to", secrets.SSID)
-        wlan.connect(secrets.SSID, secrets.PASSWORD)
-        for _ in range(40):  # wait up to ~20 s
+        targets = _wifi_targets()
+        if not targets:
+            raise RuntimeError("No WiFi profiles configured in wifi_profiles.txt")
+        for ssid, password in targets:
+            print("Connecting to", ssid)
+            try:
+                wlan.disconnect()
+            except Exception:
+                pass
+            sleep_ms(500)
+            wlan.connect(ssid, password)
+            for _ in range(40):  # wait up to ~20 s
+                if wlan.isconnected():
+                    add_profile(ssid, password)
+                    break
+                pin.on(); sleep_ms(50); pin.off(); sleep_ms(50)
             if wlan.isconnected():
                 break
-            pin.on(); sleep_ms(50); pin.off(); sleep_ms(50)
     pin.off()
     if wlan.isconnected():
         ip = wlan.ifconfig()[0]
@@ -58,7 +79,6 @@ except Exception as e:
         sleep_ms(1000)
 
 led = LEDController()
-uptime.init()
 srv = start_server(led)
 print("Open http://{}/ in a browser".format(ip))
 
@@ -67,22 +87,11 @@ print("Open http://{}/ in a browser".format(ip))
 # ---------------------------------------------------------------------------
 def led_thread():
     while True:
-        # Priority: morse > reaction > pomodoro > LED patterns
         if morse.is_playing():
             morse.tick()
-        elif reaction.get_state()["state"] not in ("idle", "done"):
-            reaction.tick()
-            sleep_ms(20)
-        elif reaction.get_state()["state"] == "done":
-            reaction.tick()  # play blink feedback
-        elif pomodoro.get_status()["state"] != "idle":
-            pomodoro.tick()
-            sleep_ms(20)
         else:
             led.tick()
             sleep_ms(20)
-        # Periodically save uptime
-        uptime.save_current()
 
 _thread.start_new_thread(led_thread, ())
 print("LED + apps running on second core")
@@ -92,4 +101,3 @@ print("LED + apps running on second core")
 # ---------------------------------------------------------------------------
 while True:
     handle_client(srv, led)
-    sleep_ms(10)

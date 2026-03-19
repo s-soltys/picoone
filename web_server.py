@@ -1,12 +1,12 @@
 import socket
 import json
+import select
+from utime import ticks_diff, ticks_ms
 from led_patterns import PATTERN_NAMES
 from notes import load_notes, add_note, delete_note, edit_note
 from sysinfo import get_info
 from morse import enqueue as morse_send, is_playing as morse_playing
-from uptime import load_entries as uptime_entries, save_current as uptime_save, get_current_uptime, format_duration
-from reaction import get_state as rxn_state, start as rxn_start, react as rxn_react
-from pomodoro import get_status as pom_status, configure as pom_configure, start as pom_start, stop as pom_stop
+from wifi_manager import scan_networks, get_profiles, add_profile, delete_profile, move_profile, get_current, connect_to
 
 # ---------------------------------------------------------------------------
 # Shared CSS
@@ -58,15 +58,18 @@ input[type=range]{width:100%%}
 # ---------------------------------------------------------------------------
 _HOME = """<!DOCTYPE html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PicoOne</title><style>%s</style></head><body>
+<title>PicoOne</title><style>%s
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%%;max-width:420px}
+.home-grid .card{width:auto;margin:0}
+</style></head><body>
 <h1>PicoOne</h1><p class="sub">picoone.local</p>
-<a class="card" href="/led"><h2>LED Control</h2><p>15 patterns &mdash; tap to switch</p></a>
-<a class="card" href="/notes"><h2>Notes</h2><p>Quick notes stored on the Pico</p></a>
-<a class="card" href="/sysinfo"><h2>System Info</h2><p>Temperature, RAM, WiFi &mdash; live</p></a>
-<a class="card" href="/morse"><h2>Morse Code</h2><p>Type text, LED blinks it out</p></a>
-<a class="card" href="/uptime"><h2>Uptime Scoreboard</h2><p>Boot history &amp; durations</p></a>
-<a class="card" href="/reaction"><h2>Reaction Game</h2><p>Test your reflexes via LED</p></a>
-<a class="card" href="/pomodoro"><h2>Pomodoro Timer</h2><p>Focus timer with LED cues</p></a>
+<div class="home-grid">
+<a class="card" href="/led"><h2>LED Control</h2><p>15 patterns</p></a>
+<a class="card" href="/notes"><h2>Notes</h2><p>Quick notes</p></a>
+<a class="card" href="/sysinfo"><h2>System Info</h2><p>Live stats</p></a>
+<a class="card" href="/morse"><h2>Morse Code</h2><p>LED blinks text</p></a>
+<a class="card" href="/wifi"><h2>WiFi</h2><p>Manage networks</p></a>
+</div>
 </body></html>"""
 
 # ---------------------------------------------------------------------------
@@ -149,7 +152,7 @@ function refresh(){
     var h='';
     var rows=[['Temperature',d.temp_c+' C'],['CPU',d.cpu_mhz+' MHz'],
       ['RAM',d.ram_free_kb+' / '+d.ram_total_kb+' KB ('+d.ram_pct+'%% used)'],
-      ['Uptime',d.uptime],['WiFi RSSI',d.rssi+' dBm'],['IP',d.ip]];
+      ['Uptime',d.uptime],['WiFi Network',d.ssid],['WiFi RSSI',d.rssi+' dBm'],['IP',d.ip]];
     rows.forEach(function(r){h+='<div class="row"><span class="k">'+r[0]+'</span><span class="v">'+r[1]+'</span></div>';});
     document.getElementById('si').innerHTML=h;
   });
@@ -187,94 +190,133 @@ function sendMorse(){
 </script></body></html>"""
 
 # ---------------------------------------------------------------------------
-# Uptime page
+# WiFi page
 # ---------------------------------------------------------------------------
-_UPTIME = """<!DOCTYPE html><html><head>
+_WIFI = """<!DOCTYPE html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PicoOne — Uptime</title><style>%s</style></head><body>
-<h1>Uptime Scoreboard</h1>
+<title>PicoOne &mdash; WiFi</title><style>%s
+.net{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;margin-bottom:8px;
+     display:flex;justify-content:space-between;align-items:center}
+.net .info{flex:1}
+.net .ssid{font-size:.95rem}
+.net .meta{color:#888;font-size:.8rem}
+.prof{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;margin-bottom:8px;
+      display:flex;justify-content:space-between;align-items:center}
+.prof .name{flex:1;font-size:.95rem}
+.prof .acts{display:flex;gap:8px}
+.prof .acts span{cursor:pointer;opacity:.5;font-size:.85rem}
+.prof .acts span:hover{opacity:1}
+.conn-form{margin-top:8px;display:none;gap:8px}
+.conn-form input{flex:1}
+.conn-form.show{display:flex}
+h2.sec{margin:20px 0 10px;font-size:1rem;color:#888}
+.cur{background:#0d5;color:#000;border-radius:10px;padding:12px;margin-bottom:16px;font-size:.9rem}
+.wifi-msg{color:#888;font-size:.9rem;min-height:1.2rem;margin:0 0 16px}
+</style></head><body>
+<h1>WiFi Manager</h1>
 <a class="back" href="/">&larr; Home</a>
-<div class="wrap">%s</div>
-</body></html>"""
-
-# ---------------------------------------------------------------------------
-# Reaction page
-# ---------------------------------------------------------------------------
-_REACTION = """<!DOCTYPE html><html><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PicoOne — Reaction Game</title><style>%s</style></head><body>
-<h1>Reaction Game</h1>
-<a class="back" href="/">&larr; Home</a>
-<div class="wrap" style="text-align:center">
-<p class="med" id="inst">When the LED turns on, tap the button!</p>
-<div class="big" id="rt">-</div>
-<p class="med" id="best"></p>
-<div class="ctr">
-<button id="gb" onclick="go()">Start</button>
-<button id="rb" onclick="tap()" style="display:none">TAP!</button>
-</div>
+<div class="wrap">
+<div id="cur"></div>
+<div id="wm" class="wifi-msg"></div>
+<h2 class="sec">Saved Networks (priority order)</h2>
+<div id="profs">Loading...</div>
+<h2 class="sec">Available Networks</h2>
+<div id="scan">Scanning...</div>
 </div>
 <script>
-var polling;
-function go(){
-  fetch('/api/reaction/start',{method:'POST'}).then(r=>r.json()).then(function(){
-    document.getElementById('gb').style.display='none';
-    document.getElementById('rb').style.display='';
-    document.getElementById('inst').textContent='Wait for the LED...';
-    document.getElementById('rt').textContent='-';
-  });
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-function tap(){
-  fetch('/api/reaction/tap',{method:'POST'}).then(r=>r.json()).then(function(d){
-    document.getElementById('rb').style.display='none';
-    document.getElementById('gb').style.display='';
-    if(d.last_ms<0){
-      document.getElementById('rt').textContent='Too early!';
-      document.getElementById('inst').textContent='You tapped before the LED lit.';
+function setWifiMsg(msg){
+  document.getElementById('wm').textContent=msg || '';
+}
+var _nets=[];
+function profileActions(i,count){
+  var parts=[];
+  if(i>0)parts.push('<span onclick="mv(' + i + ',-1)">&uarr;</span>');
+  if(i<count-1)parts.push('<span onclick="mv(' + i + ',1)">&darr;</span>');
+  parts.push('<span onclick="rm(' + i + ')">del</span>');
+  return parts.join('');
+}
+function renderProfiles(d){
+  if(!d.length)return '<div class="empty">No saved networks.</div>';
+  return d.map(function(p,i){
+    return [
+      '<div class="prof">',
+      '<span class="name">',esc(p.ssid),'</span>',
+      '<div class="acts">',profileActions(i,d.length),'</div>',
+      '</div>'
+    ].join('');
+  }).join('');
+}
+function renderNetwork(n,i){
+  var saved=n.saved ? ' &middot; saved' : '';
+  var sec=n.secure ? ' &middot; secured' : ' &middot; open';
+  return [
+    '<div class="net"><div class="info">',
+    '<div class="ssid">',esc(n.ssid),'</div>',
+    '<div class="meta">',n.rssi,' dBm',saved,sec,'</div>',
+    '<div class="conn-form" id="cf',i,
+    '"><input type="password" id="pw',i,
+    '" placeholder="Password"><button onclick="conn(',i,
+    ')">Connect</button></div>',
+    '</div><button onclick="toggle(',i,
+    ')" style="padding:8px 12px;font-size:.8rem">Join</button></div>'
+  ].join('');
+}
+function load(){
+  return fetch('/api/wifi/status').then(function(r){return r.json();}).then(function(d){
+    if(d.connected){
+      document.getElementById('cur').innerHTML='<div class="cur">Connected to <b>'+esc(d.ssid)+'</b> &mdash; '+d.ip+' ('+d.rssi+' dBm)</div>';
     }else{
-      document.getElementById('rt').textContent=d.last_ms+' ms';
-      document.getElementById('inst').textContent='LED blinks '+Math.max(1,Math.floor(d.last_ms/100))+' times';
+      document.getElementById('cur').innerHTML='<div class="cur" style="background:#c33;color:#fff">Not connected</div>';
     }
-    if(d.best_ms>0)document.getElementById('best').textContent='Best: '+d.best_ms+' ms';
+  }).then(function(){
+    return fetch('/api/wifi/profiles');
+  }).then(function(r){
+    return r.json();
+  }).then(function(d){
+    document.getElementById('profs').innerHTML=renderProfiles(d);
   });
 }
-</script></body></html>"""
-
-# ---------------------------------------------------------------------------
-# Pomodoro page
-# ---------------------------------------------------------------------------
-_POMODORO = """<!DOCTYPE html><html><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PicoOne — Pomodoro</title><style>%s</style></head><body>
-<h1>Pomodoro Timer</h1>
-<a class="back" href="/">&larr; Home</a>
-<div class="wrap" style="text-align:center">
-<div class="big" id="tm">--:--</div>
-<p class="med" id="ph">Idle</p>
-<div style="display:flex;gap:12px;margin:14px 0;justify-content:center">
-<label style="color:#888;font-size:.85rem">Work <input id="wm" type="number" value="25" min="1" max="120" style="width:60px"> min</label>
-<label style="color:#888;font-size:.85rem">Break <input id="bm" type="number" value="5" min="1" max="60" style="width:60px"> min</label>
-</div>
-<div class="ctr">
-<button onclick="pomStart()">Start</button>
-<button onclick="pomStop()">Stop</button>
-</div>
-</div>
-<script>
-function fmt(s){var m=Math.floor(s/60),ss=s%%60;return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss;}
-function pomStart(){
-  var w=document.getElementById('wm').value;
-  var b=document.getElementById('bm').value;
-  fetch('/api/pom/start?w='+w+'&b='+b,{method:'POST'}).then(r=>r.json()).then(upd);
+function scan(){
+  document.getElementById('scan').innerHTML='Scanning...';
+  return fetch('/api/wifi/scan').then(function(r){
+    return r.json();
+  }).then(function(d){
+    _nets=d;
+    document.getElementById('scan').innerHTML=d.length ? d.map(renderNetwork).join('') : '<div class="empty">No networks found.</div>';
+  });
 }
-function pomStop(){fetch('/api/pom/stop',{method:'POST'}).then(r=>r.json()).then(upd);}
-function upd(d){
-  document.getElementById('tm').textContent=fmt(d.remaining);
-  var labels={'idle':'Idle','work':'Working (LED slow pulse)','break_':'Break (LED fast pulse)','alert':'Transition!'};
-  document.getElementById('ph').textContent=labels[d.state]||d.state;
+function toggle(i){
+  var el=document.getElementById('cf'+i);
+  el.classList.toggle('show');
 }
-function poll(){fetch('/api/pom/status').then(r=>r.json()).then(upd);}
-setInterval(poll,1000);poll();
+function conn(i){
+  var ssid=_nets[i].ssid;
+  var pw=document.getElementById('pw'+i).value;
+  setWifiMsg('Starting connection to ' + ssid + '...');
+  fetch('/api/wifi/connect',{method:'POST',body:ssid+'\\n'+pw}).then(function(r){
+    return r.json();
+  }).then(function(d){
+    if(d.ok && d.pending){
+      setWifiMsg('Trying to join ' + ssid + '. This page may stop updating while PicoOne switches networks. Reopen http://picoone.local/ after it reconnects.');
+    }else if(d.busy){
+      setWifiMsg('Another Wi-Fi connection attempt is already in progress.');
+    }else{
+      setWifiMsg('Failed to start connection to ' + ssid + '.');
+    }
+  }).catch(function(){
+    setWifiMsg('Connection request did not complete. Refresh and try again.');
+  });
+}
+function mv(i,dir){
+  fetch('/api/wifi/move?i='+i+'&d='+dir,{method:'POST'}).then(load);
+}
+function rm(i){
+  fetch('/api/wifi/del?i='+i,{method:'POST'}).then(load);
+}
+load().then(scan);
 </script></body></html>"""
 
 
@@ -311,23 +353,11 @@ def _build_sysinfo_html(info):
         ("CPU", "{} MHz".format(info["cpu_mhz"])),
         ("RAM", "{} / {} KB ({}% used)".format(info["ram_free_kb"], info["ram_total_kb"], info["ram_pct"])),
         ("Uptime", info["uptime"]),
+        ("WiFi Network", info["ssid"]),
         ("WiFi RSSI", "{} dBm".format(info["rssi"])),
         ("IP", info["ip"]),
     ]
     return "".join('<div class="row"><span class="k">{}</span><span class="v">{}</span></div>'.format(k, v) for k, v in rows)
-
-
-def _build_uptime_html():
-    uptime_save()
-    entries = uptime_entries()
-    cur = get_current_uptime()
-    html = '<div class="row"><span class="k">Current session</span><span class="v" style="color:#0d5">{}</span></div>'.format(format_duration(cur))
-    if entries:
-        for e in entries:
-            html += '<div class="row"><span class="k">Boot #{}</span><span class="v">{}</span></div>'.format(e["id"], format_duration(e["seconds"]))
-    else:
-        html += '<div class="empty">No history yet.</div>'
-    return html
 
 
 def _url_decode(s):
@@ -343,9 +373,25 @@ def _url_decode(s):
 
 
 def _read_body(cl, request):
-    if "\r\n\r\n" in request:
-        return request.split("\r\n\r\n", 1)[1]
-    return ""
+    if "\r\n\r\n" not in request:
+        return ""
+    headers, body = request.split("\r\n\r\n", 1)
+    length = 0
+    for line in headers.split("\r\n")[1:]:
+        if line.lower().startswith("content-length:"):
+            try:
+                length = int(line.split(":", 1)[1].strip())
+            except ValueError:
+                length = 0
+            break
+    while len(body) < length:
+        chunk = cl.recv(length - len(body))
+        if not chunk:
+            break
+        body += chunk.decode("utf-8", "ignore")
+    if length:
+        return body[:length]
+    return body
 
 
 def _json_notes():
@@ -360,16 +406,31 @@ def start_server(led_ctrl, port=80):
     s = socket.socket()
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind(addr)
-    s.listen(2)
-    s.setblocking(False)
+    s.listen(4)
     print("Web server listening on port", port)
     return s
 
 
+_poller = None
+_pending_wifi_connect = None
+
+
+def _get_poller(s):
+    global _poller
+    if _poller is None:
+        _poller = select.poll()
+        _poller.register(s, select.POLLIN)
+    return _poller
+
+
 def _send(cl, ctype, body):
-    cl.send("HTTP/1.0 200 OK\r\nContent-Type: {}\r\nConnection: close\r\n\r\n".format(ctype))
     if isinstance(body, str):
         body = body.encode()
+    cl.send(
+        "HTTP/1.0 200 OK\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n".format(
+            ctype, len(body)
+        )
+    )
     i = 0
     while i < len(body):
         chunk = body[i:i + 512]
@@ -377,17 +438,59 @@ def _send(cl, ctype, body):
         i += len(chunk)
 
 
+def _queue_wifi_connect(ssid, password, delay_ms=800):
+    global _pending_wifi_connect
+    if _pending_wifi_connect is not None:
+        return False
+    ssid = ssid.strip()
+    if not ssid:
+        return False
+    _pending_wifi_connect = {
+        "ssid": ssid,
+        "password": password,
+        "due": ticks_ms() + delay_ms,
+    }
+    return True
+
+
+def _run_pending_wifi_connect():
+    global _pending_wifi_connect
+    job = _pending_wifi_connect
+    if job is None:
+        return
+    if ticks_diff(ticks_ms(), job["due"]) < 0:
+        return
+    _pending_wifi_connect = None
+    try:
+        print("WiFi connect:", job["ssid"])
+        ok = connect_to(job["ssid"], job["password"])
+        print("WiFi connect result:", ok)
+    except Exception as e:
+        print("wifi connect error:", e)
+
+
 def handle_client(s, led_ctrl):
+    _run_pending_wifi_connect()
+    poller = _get_poller(s)
+    events = poller.poll(100)  # wait up to 100ms
+    if not events:
+        return
     try:
         cl, addr = s.accept()
     except OSError:
         return
     try:
         cl.settimeout(5)
-        request = cl.recv(2048).decode("utf-8")
+        request = cl.recv(2048).decode("utf-8", "ignore")
         path = ""
         if request.startswith("GET ") or request.startswith("POST "):
             path = request.split(" ", 2)[1]
+
+        # Ignore favicon requests
+        if path == "/favicon.ico":
+            cl.send("HTTP/1.0 204 No Content\r\n\r\n")
+            cl.close()
+            return
 
         # --- API: LED mode ---
         if path.startswith("/set?"):
@@ -445,33 +548,6 @@ def handle_client(s, led_ctrl):
             else:
                 _send(cl, "application/json", '{"ok":false}')
 
-        # --- API: Reaction ---
-        elif path == "/api/reaction/start" and "POST" in request:
-            rxn_start()
-            _send(cl, "application/json", json.dumps(rxn_state()))
-
-        elif path == "/api/reaction/tap" and "POST" in request:
-            result = rxn_react()
-            _send(cl, "application/json", json.dumps(result))
-
-        # --- API: Pomodoro ---
-        elif path == "/api/pom/status":
-            _send(cl, "application/json", json.dumps(pom_status()))
-
-        elif path.startswith("/api/pom/start") and "POST" in request:
-            try:
-                qs = path.split("?", 1)[1]
-                params = dict(p.split("=") for p in qs.split("&") if "=" in p)
-                pom_configure(int(params.get("w", 25)), int(params.get("b", 5)))
-            except Exception:
-                pass
-            pom_start()
-            _send(cl, "application/json", json.dumps(pom_status()))
-
-        elif path == "/api/pom/stop" and "POST" in request:
-            pom_stop()
-            _send(cl, "application/json", json.dumps(pom_status()))
-
         # --- Pages ---
         elif path == "/led":
             _send(cl, "text/html", _LED % (_CSS, _build_buttons(led_ctrl.mode)))
@@ -485,14 +561,45 @@ def handle_client(s, led_ctrl):
         elif path == "/morse":
             _send(cl, "text/html", _MORSE % _CSS)
 
-        elif path == "/uptime":
-            _send(cl, "text/html", _UPTIME % (_CSS, _build_uptime_html()))
+        elif path == "/wifi":
+            _send(cl, "text/html", _WIFI % _CSS)
 
-        elif path == "/reaction":
-            _send(cl, "text/html", _REACTION % _CSS)
+        # --- API: WiFi ---
+        elif path == "/api/wifi/status":
+            _send(cl, "application/json", json.dumps(get_current()))
 
-        elif path == "/pomodoro":
-            _send(cl, "text/html", _POMODORO % _CSS)
+        elif path == "/api/wifi/profiles":
+            _send(cl, "application/json", json.dumps(get_profiles()))
+
+        elif path == "/api/wifi/scan":
+            _send(cl, "application/json", json.dumps(scan_networks()))
+
+        elif path == "/api/wifi/connect" and "POST" in request:
+            body = _read_body(cl, request).replace("\r\n", "\n")
+            parts = body.split("\n", 1)
+            if len(parts) == 2:
+                ok = _queue_wifi_connect(parts[0], parts[1])
+                _send(cl, "application/json", json.dumps({"ok": ok, "pending": ok, "busy": not ok}))
+            else:
+                _send(cl, "application/json", '{"ok": false, "pending": false, "busy": false}')
+
+        elif path.startswith("/api/wifi/move") and "POST" in request:
+            try:
+                qs = path.split("?", 1)[1]
+                params = dict(p.split("=") for p in qs.split("&") if "=" in p)
+                move_profile(int(params.get("i", -1)), int(params.get("d", 0)))
+            except Exception:
+                pass
+            _send(cl, "application/json", json.dumps(get_profiles()))
+
+        elif path.startswith("/api/wifi/del") and "POST" in request:
+            try:
+                qs = path.split("?", 1)[1]
+                params = dict(p.split("=") for p in qs.split("&") if "=" in p)
+                delete_profile(int(params.get("i", -1)))
+            except Exception:
+                pass
+            _send(cl, "application/json", json.dumps(get_profiles()))
 
         else:
             _send(cl, "text/html", _HOME % _CSS)

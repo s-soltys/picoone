@@ -1,5 +1,6 @@
 import network
 import json
+import os
 
 PROFILES_FILE = "wifi_profiles.txt"
 LEGACY_PROFILES_FILE = "wifi_profiles.json"
@@ -64,9 +65,27 @@ def _load_profiles():
         return []
 
 
+def _sync_filesystem():
+    sync = getattr(os, "sync", None)
+    if sync is None:
+        return
+    try:
+        sync()
+    except Exception:
+        pass
+
+
 def _save_profiles(profiles):
+    payload = json.dumps(_normalize_profiles(profiles))
     with open(PROFILES_FILE, "w") as f:
-        f.write(json.dumps(_normalize_profiles(profiles)))
+        f.write(payload)
+        flush = getattr(f, "flush", None)
+        if flush is not None:
+            try:
+                flush()
+            except Exception:
+                pass
+    _sync_filesystem()
 
 
 def get_profiles():

@@ -609,7 +609,7 @@
         return;
       }
       refreshSysinfo();
-      var timer = setInterval(refreshSysinfo, 2000);
+      var timer = setInterval(refreshSysinfo, 1000);
       return function () {
         clearInterval(timer);
       };

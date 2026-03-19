@@ -174,6 +174,8 @@ class LEDController:
         self._steps = []
         self._idx = 0
         self._deadline = 0
+        self._touch_mode = False
+        self._touch_pressed = False
         self._load_persisted()
         self._reload_steps()
 
@@ -206,17 +208,43 @@ class LEDController:
             pin.value(state)
             self._deadline = ticks_ms() + dur
 
+    def _apply_touch_state(self):
+        pin.value(1 if self._touch_pressed else 0)
+
     def set_mode(self, mode):
         if 0 <= mode < len(BUILDERS):
             self._mode = mode
             self._persist()
-            self._reload_steps()
+            if not self._touch_mode:
+                self._reload_steps()
 
     @property
     def mode(self):
         return self._mode
 
+    @property
+    def touch_mode_active(self):
+        return self._touch_mode
+
+    def enable_touch_mode(self):
+        self._touch_mode = True
+        self._touch_pressed = False
+        self._apply_touch_state()
+
+    def disable_touch_mode(self):
+        self._touch_mode = False
+        self._touch_pressed = False
+        self._reload_steps()
+
+    def set_touch_pressed(self, pressed):
+        self._touch_mode = True
+        self._touch_pressed = bool(pressed)
+        self._apply_touch_state()
+
     def tick(self):
+        if self._touch_mode:
+            self._apply_touch_state()
+            return
         if self._idx >= len(self._steps):
             self._reload_steps()
             return

@@ -138,7 +138,7 @@ print("Open http://{}/ in a browser".format(ip))
 # ---------------------------------------------------------------------------
 def led_thread():
     while True:
-        if morse.is_playing():
+        if not led.touch_mode_active and morse.is_playing():
             morse.tick()
         else:
             led.tick()

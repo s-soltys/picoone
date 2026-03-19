@@ -30,7 +30,9 @@ body{margin:0;font-family:system-ui,sans-serif;background:#111;color:#eee}
 .panel h2{margin:0 0 6px;font-size:1.1rem}
 .panel p{margin:0;color:#8a8a8a;font-size:.9rem;line-height:1.4}
 .home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.card{display:block;text-decoration:none;color:inherit;background:#1a1a1a;border:2px solid #333;border-radius:16px;padding:18px 16px;transition:background .15s,border-color .15s}
+.card{display:block;text-decoration:none;color:inherit;background:#1a1a1a;border:2px solid #333;border-radius:16px;padding:18px 16px;transition:background .15s,border-color .15s;min-width:0}
+.card h2{margin:0;font-size:1.1rem;line-height:1.1}
+.card p{margin:12px 0 0;color:#8a8a8a;font-size:.9rem;line-height:1.35}
 .card:hover,.card:focus{background:#202020;border-color:#555}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 button,.btn{padding:12px 10px;border:2px solid #333;border-radius:12px;background:#1a1a1a;color:#ddd;font-size:.95rem;cursor:pointer;transition:background .15s,border-color .15s}
@@ -68,10 +70,19 @@ input[type=range]{width:100%}
 .conn-form{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .spacer{height:6px}
 .footer-note{color:#767676;font-size:.82rem;line-height:1.4}
+.touch-wrap{display:flex;flex-direction:column;gap:12px}
+.touch-canvas{display:block;width:100%;height:auto;border:2px solid #333;border-radius:18px;background:#151515;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
+.touch-canvas:focus{outline:none;border-color:#888}
+.touch-canvas.active{border-color:#0d5}
+.touch-state{text-align:center;font-size:.95rem}
+.touch-hint{color:#8a8a8a;font-size:.9rem;line-height:1.4;text-align:center}
 .loading{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center;color:#9a9a9a}
+@media (max-width:560px){
+  .home-grid{grid-template-columns:1fr}
+}
 @media (max-width:420px){
   .app-shell{padding:18px 14px 28px}
-  .home-grid,.grid{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
   .toolbar{align-items:flex-start;flex-direction:column}
 }
 """
@@ -103,6 +114,7 @@ _REDIRECT_HTML = """<!DOCTYPE html><html><head>
 _STATIC_APP_JS = "web_app.js"
 _LEGACY_ROUTES = {
     "/led": "/led",
+    "/touch": "/touch",
     "/notes": "/notes",
     "/sysinfo": "/sysinfo",
     "/morse": "/morse",
@@ -293,6 +305,31 @@ def handle_client(s, led_ctrl):
 
         elif path == "/api/led":
             _send(cl, "application/json", json.dumps({"mode": led_ctrl.mode, "pattern_names": list(PATTERN_NAMES)}))
+
+        elif path.startswith("/api/led/touch-mode") and "POST" in request:
+            active = False
+            try:
+                qs = path.split("?", 1)[1]
+                params = dict(p.split("=") for p in qs.split("&") if "=" in p)
+                active = params.get("active", "0") in ("1", "true", "on")
+            except Exception:
+                pass
+            if active:
+                led_ctrl.enable_touch_mode()
+            else:
+                led_ctrl.disable_touch_mode()
+            _send(cl, "application/json", json.dumps({"ok": True, "active": led_ctrl.touch_mode_active}))
+
+        elif path.startswith("/api/led/touch") and "POST" in request:
+            pressed = False
+            try:
+                qs = path.split("?", 1)[1]
+                params = dict(p.split("=") for p in qs.split("&") if "=" in p)
+                pressed = params.get("state", "0") in ("1", "true", "on")
+            except Exception:
+                pass
+            led_ctrl.set_touch_pressed(pressed)
+            _send(cl, "application/json", json.dumps({"ok": True, "pressed": pressed}))
 
         elif path == "/api/bootstrap":
             _send(cl, "application/json", json.dumps(_build_bootstrap(led_ctrl)))

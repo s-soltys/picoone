@@ -7,11 +7,13 @@
   var render = preact.render;
   var html = htm.bind(h);
   var useEffect = preactHooks.useEffect;
+  var useRef = preactHooks.useRef;
   var useState = preactHooks.useState;
 
   var ROUTE_TITLES = {
     "/": "PicoOne",
     "/led": "LED Control",
+    "/touch": "Touch Pad",
     "/notes": "Notes",
     "/sysinfo": "System Info",
     "/morse": "Morse Code",
@@ -22,6 +24,7 @@
   var ROUTE_SUBTITLES = {
     "/": "pico.local",
     "/led": "Switch the onboard LED pattern running on the Pico.",
+    "/touch": "Press and hold the pad to light the onboard LED.",
     "/notes": "Keep quick notes on the device.",
     "/sysinfo": "Live hardware and Wi-Fi telemetry.",
     "/morse": "Blink text back out over the LED.",
@@ -127,6 +130,7 @@
   function HomeView(props) {
     var cards = [
       { route: "/led", title: "LED Control", desc: props.patternNames.length + " patterns" },
+      { route: "/touch", title: "Touch Pad", desc: "Hold to light" },
       { route: "/notes", title: "Notes", desc: "Quick notes" },
       { route: "/sysinfo", title: "System Info", desc: "Live stats" },
       { route: "/morse", title: "Morse Code", desc: "Blink text" },
@@ -180,6 +184,139 @@
             </button>
           `;
         })}
+      </div>
+    `;
+  }
+
+  function drawTouchCanvas(canvas, active) {
+    if (!canvas || !canvas.getContext) {
+      return;
+    }
+    var ctx = canvas.getContext("2d");
+    var width = canvas.width;
+    var height = canvas.height;
+    var centerX = width / 2;
+    var centerY = height / 2 - 12;
+    var outerRadius = 78;
+    var innerRadius = active ? 56 : 42;
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = active ? "#132218" : "#121212";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.strokeStyle = active ? "#8dffac" : "#4a4a4a";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = active ? "#8dffac" : "#d5d5d5";
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = active ? "#061109" : "#111111";
+    ctx.font = "700 24px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(active ? "ON" : "PRESS", centerX, centerY);
+
+    ctx.fillStyle = active ? "#a6dbb4" : "#8a8a8a";
+    ctx.font = "15px system-ui, sans-serif";
+    ctx.fillText(active ? "Release to switch the LED off" : "Hold anywhere on the pad", centerX, height - 38);
+  }
+
+  function TouchPadView(props) {
+    var canvasRef = useRef(null);
+
+    useEffect(function () {
+      props.onMode(true);
+      return function () {
+        props.onMode(false);
+      };
+    }, []);
+
+    useEffect(function () {
+      drawTouchCanvas(canvasRef.current, props.active);
+    }, [props.active]);
+
+    useEffect(function () {
+      if (!props.active) {
+        return;
+      }
+      function release() {
+        props.onPress(false);
+      }
+      function onVisibilityChange() {
+        if (document.hidden) {
+          release();
+        }
+      }
+      window.addEventListener("pointerup", release);
+      window.addEventListener("pointercancel", release);
+      window.addEventListener("blur", release);
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      return function () {
+        window.removeEventListener("pointerup", release);
+        window.removeEventListener("pointercancel", release);
+        window.removeEventListener("blur", release);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      };
+    }, [props.active]);
+
+    function pressStart(event) {
+      event.preventDefault();
+      if (event.currentTarget && event.currentTarget.setPointerCapture && typeof event.pointerId === "number") {
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch (error) {}
+      }
+      props.onPress(true);
+    }
+
+    function pressEnd(event) {
+      if (event) {
+        event.preventDefault();
+      }
+      props.onPress(false);
+    }
+
+    function keyDown(event) {
+      if ((event.key === " " || event.key === "Enter") && !props.active) {
+        event.preventDefault();
+        props.onPress(true);
+      }
+    }
+
+    function keyUp(event) {
+      if (event.key === " " || event.key === "Enter") {
+        event.preventDefault();
+        props.onPress(false);
+      }
+    }
+
+    return html`
+      <div class="panel">
+        <div class="touch-wrap">
+          <canvas
+            ref=${canvasRef}
+            class=${"touch-canvas" + (props.active ? " active" : "")}
+            width=${320}
+            height=${280}
+            tabIndex="0"
+            onPointerDown=${pressStart}
+            onPointerUp=${pressEnd}
+            onPointerCancel=${pressEnd}
+            onLostPointerCapture=${pressEnd}
+            onContextMenu=${function (event) {
+              event.preventDefault();
+            }}
+            onKeyDown=${keyDown}
+            onKeyUp=${keyUp}
+          ></canvas>
+          <div class="touch-state">${props.active ? "LED on" : "LED off"}</div>
+          <div class="touch-hint">Press and hold the pad. Release to turn the LED back off.</div>
+        </div>
       </div>
     `;
   }
@@ -505,6 +642,7 @@
     var [morseWpm, setMorseWpm] = useState(12);
     var [morseStatus, setMorseStatus] = useState("");
     var [morseBusy, setMorseBusy] = useState(false);
+    var [touchActive, setTouchActive] = useState(false);
     var [wifiCurrent, setWifiCurrent] = useState(initial.wifiCurrent);
     var [wifiProfiles, setWifiProfiles] = useState(initial.wifiProfiles);
     var [wifiMessage, setWifiMessage] = useState("");
@@ -638,6 +776,30 @@
         })
         .catch(function () {
           setBootError("LED mode update failed.");
+        });
+    }
+
+    function setTouchMode(active) {
+      if (!active) {
+        setTouchActive(false);
+      }
+      return postPlain("/api/led/touch-mode?active=" + (active ? 1 : 0), "")
+        .catch(function () {
+          setTouchActive(false);
+          setBootError("Touch pad mode update failed.");
+        });
+    }
+
+    function setTouchPressed(pressed) {
+      var next = !!pressed;
+      if (next === touchActive) {
+        return Promise.resolve();
+      }
+      setTouchActive(next);
+      return postPlain("/api/led/touch?state=" + (next ? 1 : 0), "")
+        .catch(function () {
+          setTouchActive(false);
+          setBootError("Touch pad update failed.");
         });
     }
 
@@ -819,6 +981,8 @@
       content = html`<${HomeView} patternNames=${patternNames} />`;
     } else if (route === "/led") {
       content = html`<${LedView} patternNames=${patternNames} ledMode=${ledMode} onPick=${selectLed} />`;
+    } else if (route === "/touch") {
+      content = html`<${TouchPadView} active=${touchActive} onMode=${setTouchMode} onPress=${setTouchPressed} />`;
     } else if (route === "/notes") {
       content = html`
         <${NotesView}
@@ -892,6 +1056,12 @@
     `;
   }
 
-  render(html`<${App} />`, document.getElementById("app"));
+  var root = document.getElementById("app");
+  if (!root) {
+    return;
+  }
+  root.className = "";
+  root.textContent = "";
+  render(html`<${App} />`, root);
   window.__pico_app_started = true;
 })();

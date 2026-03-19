@@ -4,6 +4,7 @@
 
 - The web UI is advertised as `http://pico.local/` after the Pico joins your network.
 - The Pico now serves a single-page app shell at `/`, with internal views routed by URL hash fragments such as `/#/wifi` and `/#/sysinfo`.
+- The Touch Pad view lives at `/#/touch` and presents a press-and-hold canvas: press down to turn the onboard LED on, release to turn it off, and leaving the view restores the selected LED pattern.
 - Legacy paths such as `/wifi` and `/notes` redirect into the SPA so old bookmarks still work.
 - The browser must be able to reach the public CDN URLs for Preact, Preact Hooks, and HTM. There is no offline fallback UI.
 - `web_app.js` is part of the deployed Pico filesystem and is served locally from `/static/app.js`.

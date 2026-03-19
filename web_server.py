@@ -216,7 +216,6 @@ h2.sec{margin:20px 0 10px;font-size:1rem;color:#888}
 <h1>WiFi Manager</h1>
 <a class="back" href="/">&larr; Home</a>
 <div class="wrap">
-<div id="cur"></div>
 <div id="wm" class="wifi-msg"></div>
 <div class="nav"><a class="btn" href="/wifi/scan">Scan Networks</a></div>
 <h2 class="sec">Saved Networks (priority order)</h2>
@@ -321,15 +320,7 @@ function saveProfile(){
   });
 }
 function load(){
-  return fetch('/api/wifi/status').then(function(r){return r.json();}).then(function(d){
-    if(d.connected){
-      document.getElementById('cur').innerHTML='<div class="cur">Connected to <b>'+esc(d.ssid)+'</b> &mdash; '+d.ip+' ('+d.rssi+' dBm)</div>';
-    }else{
-      document.getElementById('cur').innerHTML='<div class="cur" style="background:#c33;color:#fff">Not connected</div>';
-    }
-  }).then(function(){
-    return fetch('/api/wifi/profiles');
-  }).then(function(r){
+  return fetch('/api/wifi/profiles').then(function(r){
     return r.json();
   }).then(function(d){
     setProfiles(d);

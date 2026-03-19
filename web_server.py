@@ -82,7 +82,7 @@ _INDEX_HTML = """<!DOCTYPE html><html><head>
 <title>PicoOne</title>
 <style>%s</style>
 </head><body>
-<div id="app" class="loading">Loading PicoOne...</div>
+<div id="app" class="loading">Loading...</div>
 <script>window.__PICO_BOOTSTRAP__=%s;window.setTimeout(function(){if(!window.__pico_app_started){var root=document.getElementById('app');if(root){root.innerHTML='PicoOne needs to load Preact from the CDN. Connect this browser to the internet and reload.';}}},4000);</script>
 <script src="https://unpkg.com/preact@10.26.4/dist/preact.umd.js"></script>
 <script src="https://unpkg.com/preact@10.26.4/hooks/dist/hooks.umd.js"></script>

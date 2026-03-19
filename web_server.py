@@ -6,7 +6,7 @@ from led_patterns import PATTERN_NAMES
 from notes import load_notes, add_note, delete_note, edit_note
 from sysinfo import get_info
 from morse import enqueue as morse_send, is_playing as morse_playing
-from wifi_manager import scan_networks, get_profiles, add_profile, delete_profile, move_profile, get_current, connect_to
+from wifi_manager import scan_networks, get_profiles, set_profile, delete_profile, move_profile, get_current, connect_to
 
 # ---------------------------------------------------------------------------
 # Shared CSS
@@ -62,7 +62,7 @@ _HOME = """<!DOCTYPE html><html><head>
 .home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%%;max-width:420px}
 .home-grid .card{width:auto;margin:0}
 </style></head><body>
-<h1>PicoOne</h1><p class="sub">picoone.local</p>
+<h1>PicoOne</h1><p class="sub">pico.local</p>
 <div class="home-grid">
 <a class="card" href="/led"><h2>LED Control</h2><p>15 patterns</p></a>
 <a class="card" href="/notes"><h2>Notes</h2><p>Quick notes</p></a>
@@ -195,31 +195,190 @@ function sendMorse(){
 _WIFI = """<!DOCTYPE html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PicoOne &mdash; WiFi</title><style>%s
-.net{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;margin-bottom:8px;
-     display:flex;justify-content:space-between;align-items:center}
-.net .info{flex:1}
-.net .ssid{font-size:.95rem}
-.net .meta{color:#888;font-size:.8rem}
 .prof{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;margin-bottom:8px;
       display:flex;justify-content:space-between;align-items:center}
-.prof .name{flex:1;font-size:.95rem}
-.prof .acts{display:flex;gap:8px}
+.prof .info{flex:1}
+.prof .name{font-size:.95rem}
+.prof .meta{color:#888;font-size:.8rem;margin-top:4px}
+.prof .acts{display:flex;gap:8px;flex-wrap:wrap}
 .prof .acts span{cursor:pointer;opacity:.5;font-size:.85rem}
 .prof .acts span:hover{opacity:1}
-.conn-form{margin-top:8px;display:none;gap:8px}
-.conn-form input{flex:1}
-.conn-form.show{display:flex}
 h2.sec{margin:20px 0 10px;font-size:1rem;color:#888}
 .cur{background:#0d5;color:#000;border-radius:10px;padding:12px;margin-bottom:16px;font-size:.9rem}
 .wifi-msg{color:#888;font-size:.9rem;min-height:1.2rem;margin:0 0 16px}
+.nav{display:flex;gap:8px;margin-bottom:16px}
+.nav a{text-decoration:none}
+.form-card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px}
+.form-card input{width:100%%;margin-bottom:8px}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap}
+.muted{color:#888;font-size:.8rem;margin-top:8px}
 </style></head><body>
 <h1>WiFi Manager</h1>
 <a class="back" href="/">&larr; Home</a>
 <div class="wrap">
 <div id="cur"></div>
 <div id="wm" class="wifi-msg"></div>
+<div class="nav"><a class="btn" href="/wifi/scan">Scan Networks</a></div>
 <h2 class="sec">Saved Networks (priority order)</h2>
 <div id="profs">Loading...</div>
+<h2 class="sec" id="ft">Add Network</h2>
+<div class="form-card">
+<input id="ssid" type="text" placeholder="SSID">
+<input id="pw" type="password" placeholder="Password (leave blank for open network)">
+<div class="row-btns">
+<button id="savebtn" onclick="saveProfile()">Save Network</button>
+<button id="cancelbtn" onclick="cancelEdit()" style="display:none">Cancel</button>
+</div>
+<div class="muted">Save networks here, then use Join from the saved list when needed.</div>
+</div>
+</div>
+<script>
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function setWifiMsg(msg){
+  document.getElementById('wm').textContent=msg || '';
+}
+var _profiles=[];
+var _edit=-1;
+function profileActions(i,count){
+  var parts=[];
+  parts.push('<span onclick="connProfile(' + i + ')">join</span>');
+  parts.push('<span onclick="editProfile(' + i + ')">edit</span>');
+  if(i>0)parts.push('<span onclick="mv(' + i + ',-1)">&uarr;</span>');
+  if(i<count-1)parts.push('<span onclick="mv(' + i + ',1)">&darr;</span>');
+  parts.push('<span onclick="rm(' + i + ')">del</span>');
+  return parts.join('');
+}
+function renderProfiles(d){
+  if(!d.length)return '<div class="empty">No saved networks.</div>';
+  return d.map(function(p,i){
+    var meta=p.password ? 'Password saved' : 'Open network';
+    return [
+      '<div class="prof">',
+      '<div class="info"><div class="name">',esc(p.ssid),'</div><div class="meta">',meta,'</div></div>',
+      '<div class="acts">',profileActions(i,d.length),'</div>',
+      '</div>'
+    ].join('');
+  }).join('');
+}
+function setProfiles(d){
+  _profiles=d;
+  document.getElementById('profs').innerHTML=renderProfiles(d);
+}
+function resetForm(){
+  _edit=-1;
+  document.getElementById('ssid').value='';
+  document.getElementById('pw').value='';
+  document.getElementById('ft').textContent='Add Network';
+  document.getElementById('savebtn').textContent='Save Network';
+  document.getElementById('cancelbtn').style.display='none';
+}
+function editProfile(i){
+  var p=_profiles[i];
+  _edit=i;
+  document.getElementById('ssid').value=p.ssid;
+  document.getElementById('pw').value=p.password || '';
+  document.getElementById('ft').textContent='Edit Network';
+  document.getElementById('savebtn').textContent='Update Network';
+  document.getElementById('cancelbtn').style.display='inline-block';
+}
+function cancelEdit(){
+  resetForm();
+}
+function connectRequest(ssid,pw){
+  setWifiMsg('Starting connection to ' + ssid + '...');
+  return fetch('/api/wifi/connect',{method:'POST',body:ssid+'\\n'+(pw || '')}).then(function(r){
+    return r.json();
+  }).then(function(d){
+    if(d.ok && d.pending){
+      setWifiMsg('Trying to join ' + ssid + '. This page may stop updating while PicoOne switches networks. Reopen http://pico.local/ after it reconnects.');
+    }else if(d.busy){
+      setWifiMsg('Another Wi-Fi connection attempt is already in progress.');
+    }else{
+      setWifiMsg('Failed to start connection to ' + ssid + '.');
+    }
+  }).catch(function(){
+    setWifiMsg('Connection request did not complete. Refresh and try again.');
+  });
+}
+function connProfile(i){
+  var p=_profiles[i];
+  connectRequest(p.ssid,p.password || '');
+}
+function saveProfile(){
+  var ssid=document.getElementById('ssid').value.trim();
+  var pw=document.getElementById('pw').value;
+  if(!ssid){setWifiMsg('SSID is required.');return;}
+  fetch('/api/wifi/profile',{method:'POST',body:String(_edit)+'\\n'+ssid+'\\n'+pw}).then(function(r){
+    return r.json();
+  }).then(function(d){
+    setProfiles(d);
+    resetForm();
+    setWifiMsg('Saved ' + ssid + '.');
+  }).catch(function(){
+    setWifiMsg('Saving the network failed.');
+  });
+}
+function load(){
+  return fetch('/api/wifi/status').then(function(r){return r.json();}).then(function(d){
+    if(d.connected){
+      document.getElementById('cur').innerHTML='<div class="cur">Connected to <b>'+esc(d.ssid)+'</b> &mdash; '+d.ip+' ('+d.rssi+' dBm)</div>';
+    }else{
+      document.getElementById('cur').innerHTML='<div class="cur" style="background:#c33;color:#fff">Not connected</div>';
+    }
+  }).then(function(){
+    return fetch('/api/wifi/profiles');
+  }).then(function(r){
+    return r.json();
+  }).then(function(d){
+    setProfiles(d);
+  });
+}
+function mv(i,dir){
+  fetch('/api/wifi/move?i='+i+'&d='+dir,{method:'POST'}).then(function(r){
+    return r.json();
+  }).then(function(d){
+    setProfiles(d);
+    resetForm();
+  });
+}
+function rm(i){
+  fetch('/api/wifi/del?i='+i,{method:'POST'}).then(function(r){
+    return r.json();
+  }).then(function(d){
+    setProfiles(d);
+    resetForm();
+  });
+}
+resetForm();
+load();
+</script></body></html>"""
+
+
+_WIFI_SCAN = """<!DOCTYPE html><html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PicoOne &mdash; WiFi Scan</title><style>%s
+.net{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;margin-bottom:8px;
+     display:flex;justify-content:space-between;align-items:center}
+.net .info{flex:1}
+.net .ssid{font-size:.95rem}
+.net .meta{color:#888;font-size:.8rem}
+.conn-form{margin-top:8px;display:none;gap:8px}
+.conn-form input{flex:1}
+.conn-form.show{display:flex}
+h2.sec{margin:20px 0 10px;font-size:1rem;color:#888}
+.cur{background:#0d5;color:#000;border-radius:10px;padding:12px;margin-bottom:16px;font-size:.9rem}
+.wifi-msg{color:#888;font-size:.9rem;min-height:1.2rem;margin:0 0 16px}
+.nav{display:flex;gap:8px;margin-bottom:16px}
+.nav a{text-decoration:none}
+</style></head><body>
+<h1>WiFi Scan</h1>
+<a class="back" href="/wifi">&larr; Saved Networks</a>
+<div class="wrap">
+<div id="cur"></div>
+<div id="wm" class="wifi-msg"></div>
+<div class="nav"><a class="btn" href="/wifi">Saved Networks</a></div>
 <h2 class="sec">Available Networks</h2>
 <div id="scan">Scanning...</div>
 </div>
@@ -231,24 +390,6 @@ function setWifiMsg(msg){
   document.getElementById('wm').textContent=msg || '';
 }
 var _nets=[];
-function profileActions(i,count){
-  var parts=[];
-  if(i>0)parts.push('<span onclick="mv(' + i + ',-1)">&uarr;</span>');
-  if(i<count-1)parts.push('<span onclick="mv(' + i + ',1)">&darr;</span>');
-  parts.push('<span onclick="rm(' + i + ')">del</span>');
-  return parts.join('');
-}
-function renderProfiles(d){
-  if(!d.length)return '<div class="empty">No saved networks.</div>';
-  return d.map(function(p,i){
-    return [
-      '<div class="prof">',
-      '<span class="name">',esc(p.ssid),'</span>',
-      '<div class="acts">',profileActions(i,d.length),'</div>',
-      '</div>'
-    ].join('');
-  }).join('');
-}
 function renderNetwork(n,i){
   var saved=n.saved ? ' &middot; saved' : '';
   var sec=n.secure ? ' &middot; secured' : ' &middot; open';
@@ -264,6 +405,22 @@ function renderNetwork(n,i){
     ')" style="padding:8px 12px;font-size:.8rem">Join</button></div>'
   ].join('');
 }
+function connectRequest(ssid,pw){
+  setWifiMsg('Starting connection to ' + ssid + '...');
+  return fetch('/api/wifi/connect',{method:'POST',body:ssid+'\\n'+(pw || '')}).then(function(r){
+    return r.json();
+  }).then(function(d){
+    if(d.ok && d.pending){
+      setWifiMsg('Trying to join ' + ssid + '. This page may stop updating while PicoOne switches networks. Reopen http://pico.local/ after it reconnects.');
+    }else if(d.busy){
+      setWifiMsg('Another Wi-Fi connection attempt is already in progress.');
+    }else{
+      setWifiMsg('Failed to start connection to ' + ssid + '.');
+    }
+  }).catch(function(){
+    setWifiMsg('Connection request did not complete. Refresh and try again.');
+  });
+}
 function load(){
   return fetch('/api/wifi/status').then(function(r){return r.json();}).then(function(d){
     if(d.connected){
@@ -271,12 +428,6 @@ function load(){
     }else{
       document.getElementById('cur').innerHTML='<div class="cur" style="background:#c33;color:#fff">Not connected</div>';
     }
-  }).then(function(){
-    return fetch('/api/wifi/profiles');
-  }).then(function(r){
-    return r.json();
-  }).then(function(d){
-    document.getElementById('profs').innerHTML=renderProfiles(d);
   });
 }
 function scan(){
@@ -295,26 +446,7 @@ function toggle(i){
 function conn(i){
   var ssid=_nets[i].ssid;
   var pw=document.getElementById('pw'+i).value;
-  setWifiMsg('Starting connection to ' + ssid + '...');
-  fetch('/api/wifi/connect',{method:'POST',body:ssid+'\\n'+pw}).then(function(r){
-    return r.json();
-  }).then(function(d){
-    if(d.ok && d.pending){
-      setWifiMsg('Trying to join ' + ssid + '. This page may stop updating while PicoOne switches networks. Reopen http://picoone.local/ after it reconnects.');
-    }else if(d.busy){
-      setWifiMsg('Another Wi-Fi connection attempt is already in progress.');
-    }else{
-      setWifiMsg('Failed to start connection to ' + ssid + '.');
-    }
-  }).catch(function(){
-    setWifiMsg('Connection request did not complete. Refresh and try again.');
-  });
-}
-function mv(i,dir){
-  fetch('/api/wifi/move?i='+i+'&d='+dir,{method:'POST'}).then(load);
-}
-function rm(i){
-  fetch('/api/wifi/del?i='+i,{method:'POST'}).then(load);
+  connectRequest(ssid,pw);
 }
 load().then(scan);
 </script></body></html>"""
@@ -564,11 +696,25 @@ def handle_client(s, led_ctrl):
         elif path == "/wifi":
             _send(cl, "text/html", _WIFI % _CSS)
 
+        elif path == "/wifi/scan":
+            _send(cl, "text/html", _WIFI_SCAN % _CSS)
+
         # --- API: WiFi ---
         elif path == "/api/wifi/status":
             _send(cl, "application/json", json.dumps(get_current()))
 
         elif path == "/api/wifi/profiles":
+            _send(cl, "application/json", json.dumps(get_profiles()))
+
+        elif path == "/api/wifi/profile" and "POST" in request:
+            body = _read_body(cl, request).replace("\r\n", "\n")
+            parts = body.split("\n", 2)
+            if len(parts) >= 3:
+                try:
+                    idx = int(parts[0])
+                except ValueError:
+                    idx = -1
+                set_profile(idx, parts[1], parts[2])
             _send(cl, "application/json", json.dumps(get_profiles()))
 
         elif path == "/api/wifi/scan":

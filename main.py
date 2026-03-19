@@ -25,7 +25,7 @@ def _wifi_targets():
     return targets
 
 def connect_wifi():
-    network.hostname("picoone")
+    network.hostname("pico")
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     if not wlan.isconnected():
@@ -51,7 +51,7 @@ def connect_wifi():
     if wlan.isconnected():
         ip = wlan.ifconfig()[0]
         print("Connected — IP:", ip)
-        print("Also reachable at http://picoone.local/")
+        print("Also reachable at http://pico.local/")
         # Solid LED for 3 seconds to confirm connection
         pin.on()
         sleep_ms(3000)

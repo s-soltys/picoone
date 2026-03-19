@@ -10,7 +10,8 @@
 - `wifi_profiles.txt` is included in the project and is copied to the device filesystem with the rest of the app.
 - Replace the example entry in `wifi_profiles.txt` with your real SSID and password before deploying.
 - Saved networks are stored in `wifi_profiles.txt` in priority order.
-- On boot, PicoOne tries only the saved networks in `wifi_profiles.txt`, top to bottom.
+- On boot, PicoOne keeps cycling through the saved networks in `wifi_profiles.txt` until one connects.
+- While Wi-Fi is disconnected, the onboard LED uses a sustained full-bright blink pattern; the user-selected LED pattern resumes after Wi-Fi comes up.
 - The Wi-Fi manager view shows saved networks, lets you reorder/edit/delete them, and includes a manual add/edit form for SSID and password.
 - Nearby network scanning remains a separate SPA view at `/#/wifi/scan`.
 - Phone hotspots need to offer 2.4 GHz WPA/WPA2 compatibility. Pico W class devices will typically fail against 5 GHz-only or WPA3-only hotspots.

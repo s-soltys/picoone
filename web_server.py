@@ -1,486 +1,146 @@
-import socket
 import json
 import select
+import socket
 from utime import ticks_diff, ticks_ms
-from led_patterns import PATTERN_NAMES
-from notes import load_notes, add_note, delete_note, edit_note
-from sysinfo import get_info
-from morse import enqueue as morse_send, is_playing as morse_playing
-from wifi_manager import scan_networks, get_profiles, set_profile, delete_profile, move_profile, get_current, connect_to
 
-# ---------------------------------------------------------------------------
-# Shared CSS
-# ---------------------------------------------------------------------------
-_CSS = """*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,sans-serif;background:#111;color:#eee;
-     display:flex;flex-direction:column;align-items:center;padding:24px}
-h1{margin-bottom:4px;font-size:1.6rem}
-p.sub{color:#888;margin-bottom:24px;font-size:.9rem}
-a.back{color:#888;text-decoration:none;font-size:.9rem;margin-bottom:18px}
-a.back:hover{color:#ccc}
-.card{width:100%%;max-width:420px;background:#1a1a1a;border:2px solid #333;
-      border-radius:14px;padding:24px 20px;margin-bottom:14px;
-      text-decoration:none;color:#eee;display:block;transition:all .15s}
-.card:hover{border-color:#555;background:#222}
-.card h2{font-size:1.1rem;margin-bottom:4px}
-.card p{color:#888;font-size:.85rem}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%%;max-width:420px}
-button,.btn{padding:12px 8px;border:2px solid #333;border-radius:10px;
-       background:#1a1a1a;color:#ccc;font-size:.95rem;cursor:pointer;transition:all .15s}
+from led_patterns import PATTERN_NAMES
+from morse import enqueue as morse_send, is_playing as morse_playing
+from notes import add_note, delete_note, edit_note, load_notes
+from sysinfo import get_info
+from wifi_manager import (
+    connect_to,
+    delete_profile,
+    get_current,
+    get_profiles,
+    move_profile,
+    scan_networks,
+    set_profile,
+)
+
+
+_CSS = """*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:#111;color:#eee}
+#app{min-height:100vh}
+.app-shell{max-width:460px;margin:0 auto;padding:24px 18px 32px}
+.title{margin:0;font-size:1.8rem;letter-spacing:.02em}
+.sub{color:#8a8a8a;margin:6px 0 0;font-size:.95rem;line-height:1.5}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+.toolbar .btn{padding:10px 14px}
+.panel{background:#1a1a1a;border:1px solid #333;border-radius:16px;padding:18px 16px;margin-bottom:14px}
+.panel h2{margin:0 0 6px;font-size:1.1rem}
+.panel p{margin:0;color:#8a8a8a;font-size:.9rem;line-height:1.4}
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{display:block;text-decoration:none;color:inherit;background:#1a1a1a;border:2px solid #333;border-radius:16px;padding:18px 16px;transition:background .15s,border-color .15s}
+.card:hover,.card:focus{background:#202020;border-color:#555}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button,.btn{padding:12px 10px;border:2px solid #333;border-radius:12px;background:#1a1a1a;color:#ddd;font-size:.95rem;cursor:pointer;transition:background .15s,border-color .15s}
 button:hover,.btn:hover{background:#222;border-color:#555}
 button.active{background:#0d5;color:#000;border-color:#0d5;font-weight:700}
-.wrap{width:100%%;max-width:420px}
-.note-form{display:flex;gap:8px;margin-bottom:14px}
-.note-form textarea{flex:1;padding:10px;border:2px solid #333;border-radius:10px;
-     background:#1a1a1a;color:#eee;font-size:.9rem;resize:vertical;
-     min-height:60px;font-family:inherit}
-.note-form .btn{white-space:nowrap;align-self:flex-end;padding:10px 16px;
-     background:#28a;border-color:#28a;color:#fff}
-.note-form .btn:hover{background:#39b}
-.note{background:#1a1a1a;border:1px solid #333;border-radius:10px;
-      padding:12px;margin-bottom:8px;position:relative;word-wrap:break-word;
-      white-space:pre-wrap;font-size:.9rem;line-height:1.4}
-.note .acts{position:absolute;top:8px;right:8px;display:flex;gap:6px}
-.note .acts span{cursor:pointer;opacity:.5;font-size:.85rem}
-.note .acts span:hover{opacity:1}
-.empty{color:#555;font-style:italic;font-size:.9rem}
-.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #222}
-.row .k{color:#888;font-size:.9rem}.row .v{font-size:.9rem}
-input[type=text],input[type=number],textarea{padding:10px;border:2px solid #333;
-     border-radius:10px;background:#1a1a1a;color:#eee;font-size:.9rem;font-family:inherit}
-input[type=range]{width:100%%}
-.big{font-size:3rem;font-weight:700;text-align:center;margin:18px 0}
-.med{font-size:1.4rem;text-align:center;margin:10px 0;color:#888}
-.ctr{display:flex;gap:10px;justify-content:center;margin:14px 0}"""
+button.primary,.btn.primary{background:#28a;border-color:#28a;color:#fff}
+button.primary:hover,.btn.primary:hover{background:#39b;border-color:#39b}
+button.warn{background:#c33;border-color:#c33;color:#fff}
+button[disabled]{opacity:.55;cursor:default}
+.row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #262626}
+.row:last-child{border-bottom:0}
+.row .k{color:#8a8a8a;font-size:.9rem}
+.row .v{font-size:.9rem;text-align:right}
+.stack{display:flex;flex-direction:column;gap:12px}
+.note-form{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.note{background:#151515;border:1px solid #333;border-radius:12px;padding:12px 12px 14px;position:relative;white-space:pre-wrap;word-wrap:break-word}
+.acts{display:flex;gap:10px;flex-wrap:wrap}
+.acts span,.text-btn{color:#bdbdbd;cursor:pointer;font-size:.86rem}
+.acts span:hover,.text-btn:hover{color:#fff}
+.empty{color:#666;font-style:italic;font-size:.92rem}
+.field{width:100%;padding:10px 12px;border:2px solid #333;border-radius:12px;background:#111;color:#eee;font-size:.95rem;font-family:inherit}
+textarea.field{min-height:82px;resize:vertical}
+input[type=range]{width:100%}
+.ctr{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.status{border-radius:12px;padding:12px 14px;font-size:.92rem;line-height:1.4}
+.status.good{background:#0d5;color:#000}
+.status.bad{background:#c33;color:#fff}
+.status.neutral{background:#202020;color:#ddd;border:1px solid #333}
+.split{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.meta{color:#8a8a8a;font-size:.82rem;margin-top:4px}
+.nav{display:flex;gap:8px;flex-wrap:wrap}
+.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#202020;border:1px solid #333;color:#bdbdbd;font-size:.78rem}
+.section-title{margin:6px 0 10px;font-size:1rem;color:#9b9b9b}
+.net,.prof{background:#151515;border:1px solid #333;border-radius:12px;padding:12px}
+.conn-form{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.spacer{height:6px}
+.footer-note{color:#767676;font-size:.82rem;line-height:1.4}
+.loading{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center;color:#9a9a9a}
+@media (max-width:420px){
+  .app-shell{padding:18px 14px 28px}
+  .home-grid,.grid{grid-template-columns:1fr}
+  .toolbar{align-items:flex-start;flex-direction:column}
+}
+"""
 
-# ---------------------------------------------------------------------------
-# Home page
-# ---------------------------------------------------------------------------
-_HOME = """<!DOCTYPE html><html><head>
+
+_INDEX_HTML = """<!DOCTYPE html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PicoOne</title><style>%s
-.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%%;max-width:420px}
-.home-grid .card{width:auto;margin:0}
-</style></head><body>
-<h1>PicoOne</h1><p class="sub">pico.local</p>
-<div class="home-grid">
-<a class="card" href="/led"><h2>LED Control</h2><p>15 patterns</p></a>
-<a class="card" href="/notes"><h2>Notes</h2><p>Quick notes</p></a>
-<a class="card" href="/sysinfo"><h2>System Info</h2><p>Live stats</p></a>
-<a class="card" href="/morse"><h2>Morse Code</h2><p>LED blinks text</p></a>
-<a class="card" href="/wifi"><h2>WiFi</h2><p>Manage networks</p></a>
-</div>
+<title>PicoOne</title>
+<style>%s</style>
+</head><body>
+<div id="app" class="loading">Loading PicoOne...</div>
+<script>window.__PICO_BOOTSTRAP__=%s;window.setTimeout(function(){if(!window.__pico_app_started){var root=document.getElementById('app');if(root){root.innerHTML='PicoOne needs to load Preact from the CDN. Connect this browser to the internet and reload.';}}},4000);</script>
+<script src="https://unpkg.com/preact@10.26.4/dist/preact.umd.js"></script>
+<script src="https://unpkg.com/preact@10.26.4/hooks/dist/hooks.umd.js"></script>
+<script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="/static/app.js"></script>
 </body></html>"""
 
-# ---------------------------------------------------------------------------
-# LED page
-# ---------------------------------------------------------------------------
-_LED = """<!DOCTYPE html><html><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PicoOne — LED</title><style>%s</style></head><body>
-<h1>LED Control</h1>
-<a class="back" href="/">&larr; Home</a>
-<div class="grid">%s</div>
-<script>
-function pick(m){
-  fetch('/set?mode='+m).then(r=>r.json()).then(d=>{
-    document.querySelectorAll('button').forEach(b=>{
-      b.classList.toggle('active',parseInt(b.dataset.m)===d.mode);
-    });
-  });
-}
-</script></body></html>"""
 
-# ---------------------------------------------------------------------------
-# Notes page
-# ---------------------------------------------------------------------------
-_NOTES = """<!DOCTYPE html><html><head>
+_REDIRECT_HTML = """<!DOCTYPE html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PicoOne — Notes</title><style>%s</style></head><body>
-<h1>Notes</h1>
-<a class="back" href="/">&larr; Home</a>
-<div class="wrap">
-<div class="note-form">
-<textarea id="nt" placeholder="Write a note..."></textarea>
-<div class="btn" onclick="addNote()">Add</div>
-</div>
-<div id="notes">%s</div>
-</div>
-<script>
-function addNote(){
-  var t=document.getElementById('nt');
-  if(!t.value.trim())return;
-  fetch('/notes/add',{method:'POST',body:t.value}).then(r=>r.json()).then(d=>{
-    t.value='';renderNotes(d.notes);
-  });
-}
-function delNote(i){
-  fetch('/notes/del?i='+i,{method:'POST'}).then(r=>r.json()).then(d=>renderNotes(d.notes));
-}
-function editNote(i){
-  var el=document.getElementById('n'+i);
-  var txt=el.innerText;
-  var nv=prompt('Edit note:',txt);
-  if(nv!==null&&nv.trim()){
-    fetch('/notes/edit',{method:'POST',body:i+'\\n'+nv}).then(r=>r.json()).then(d=>renderNotes(d.notes));
-  }
-}
-function renderNotes(notes){
-  var c=document.getElementById('notes');
-  if(!notes.length){c.innerHTML='<div class="empty">No notes yet.</div>';return;}
-  c.innerHTML=notes.map(function(n,i){
-    return '<div class="note"><span id="n'+i+'">'+esc(n)+'</span>'+
-      '<div class="acts"><span onclick="editNote('+i+')">edit</span>'+
-      '<span onclick="delNote('+i+')">del</span></div></div>';
-  }).join('');
-}
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-</script></body></html>"""
+<title>PicoOne</title>
+</head><body>
+<script>location.replace('/#%s');</script>
+<p>Redirecting to <a href="/#%s">PicoOne</a>...</p>
+</body></html>"""
 
-# ---------------------------------------------------------------------------
-# System Info page
-# ---------------------------------------------------------------------------
-_SYSINFO = """<!DOCTYPE html><html><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PicoOne — System Info</title><style>%s</style></head><body>
-<h1>System Info</h1>
-<a class="back" href="/">&larr; Home</a>
-<div class="wrap" id="si">%s</div>
-<script>
-function refresh(){
-  fetch('/api/sysinfo').then(r=>r.json()).then(d=>{
-    var h='';
-    var rows=[['Temperature',d.temp_c+' C'],['CPU',d.cpu_mhz+' MHz'],
-      ['RAM',d.ram_free_kb+' / '+d.ram_total_kb+' KB ('+d.ram_pct+'%% used)'],
-      ['Uptime',d.uptime],['WiFi Network',d.ssid],['WiFi RSSI',d.rssi+' dBm'],['IP',d.ip]];
-    rows.forEach(function(r){h+='<div class="row"><span class="k">'+r[0]+'</span><span class="v">'+r[1]+'</span></div>';});
-    document.getElementById('si').innerHTML=h;
-  });
-}
-setInterval(refresh,2000);
-</script></body></html>"""
 
-# ---------------------------------------------------------------------------
-# Morse page
-# ---------------------------------------------------------------------------
-_MORSE = """<!DOCTYPE html><html><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PicoOne — Morse Code</title><style>%s</style></head><body>
-<h1>Morse Code</h1>
-<a class="back" href="/">&larr; Home</a>
-<div class="wrap">
-<input id="mt" type="text" placeholder="Type your message..." style="width:100%%;margin-bottom:12px">
-<div style="margin-bottom:12px">
-<label style="color:#888;font-size:.85rem">Speed: <span id="wv">12</span> WPM</label>
-<input type="range" id="ws" min="5" max="25" value="12" oninput="document.getElementById('wv').textContent=this.value">
-</div>
-<div class="ctr"><button onclick="sendMorse()">Send via LED</button></div>
-<p id="ms" class="med"></p>
-</div>
-<script>
-function sendMorse(){
-  var t=document.getElementById('mt').value;
-  var w=document.getElementById('ws').value;
-  if(!t.trim())return;
-  document.getElementById('ms').textContent='Sending...';
-  fetch('/api/morse?wpm='+w,{method:'POST',body:t}).then(r=>r.json()).then(d=>{
-    document.getElementById('ms').textContent=d.ok?'Blinking now!':'Busy';
-  });
+_STATIC_APP_JS = "web_app.js"
+_LEGACY_ROUTES = {
+    "/led": "/led",
+    "/notes": "/notes",
+    "/sysinfo": "/sysinfo",
+    "/morse": "/morse",
+    "/wifi": "/wifi",
+    "/wifi/scan": "/wifi/scan",
 }
-</script></body></html>"""
 
-# ---------------------------------------------------------------------------
-# WiFi page
-# ---------------------------------------------------------------------------
-_WIFI = """<!DOCTYPE html><html><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PicoOne &mdash; WiFi</title><style>%s
-.prof{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;margin-bottom:8px;
-      display:flex;justify-content:space-between;align-items:center}
-.prof .info{flex:1}
-.prof .name{font-size:.95rem}
-.prof .meta{color:#888;font-size:.8rem;margin-top:4px}
-.prof .acts{display:flex;gap:8px;flex-wrap:wrap}
-.prof .acts span{cursor:pointer;opacity:.5;font-size:.85rem}
-.prof .acts span:hover{opacity:1}
-h2.sec{margin:20px 0 10px;font-size:1rem;color:#888}
-.cur{background:#0d5;color:#000;border-radius:10px;padding:12px;margin-bottom:16px;font-size:.9rem}
-.wifi-msg{color:#888;font-size:.9rem;min-height:1.2rem;margin:0 0 16px}
-.nav{display:flex;gap:8px;margin-bottom:16px}
-.nav a{text-decoration:none}
-.form-card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px}
-.form-card input{width:100%%;margin-bottom:8px}
-.row-btns{display:flex;gap:8px;flex-wrap:wrap}
-.muted{color:#888;font-size:.8rem;margin-top:8px}
-</style></head><body>
-<h1>WiFi Manager</h1>
-<a class="back" href="/">&larr; Home</a>
-<div class="wrap">
-<div id="wm" class="wifi-msg"></div>
-<div class="nav"><a class="btn" href="/wifi/scan">Scan Networks</a></div>
-<h2 class="sec">Saved Networks (priority order)</h2>
-<div id="profs">Loading...</div>
-<h2 class="sec" id="ft">Add Network</h2>
-<div class="form-card">
-<input id="ssid" type="text" placeholder="SSID">
-<input id="pw" type="password" placeholder="Password (leave blank for open network)">
-<div class="row-btns">
-<button id="savebtn" onclick="saveProfile()">Save Network</button>
-<button id="cancelbtn" onclick="cancelEdit()" style="display:none">Cancel</button>
-</div>
-<div class="muted">Save networks here, then use Join from the saved list when needed.</div>
-</div>
-</div>
-<script>
-function esc(s){
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function setWifiMsg(msg){
-  document.getElementById('wm').textContent=msg || '';
-}
-var _profiles=[];
-var _edit=-1;
-function profileActions(i,count){
-  var parts=[];
-  parts.push('<span onclick="connProfile(' + i + ')">join</span>');
-  parts.push('<span onclick="editProfile(' + i + ')">edit</span>');
-  if(i>0)parts.push('<span onclick="mv(' + i + ',-1)">&uarr;</span>');
-  if(i<count-1)parts.push('<span onclick="mv(' + i + ',1)">&darr;</span>');
-  parts.push('<span onclick="rm(' + i + ')">del</span>');
-  return parts.join('');
-}
-function renderProfiles(d){
-  if(!d.length)return '<div class="empty">No saved networks.</div>';
-  return d.map(function(p,i){
-    var meta=p.password ? 'Password saved' : 'Open network';
-    return [
-      '<div class="prof">',
-      '<div class="info"><div class="name">',esc(p.ssid),'</div><div class="meta">',meta,'</div></div>',
-      '<div class="acts">',profileActions(i,d.length),'</div>',
-      '</div>'
-    ].join('');
-  }).join('');
-}
-function setProfiles(d){
-  _profiles=d;
-  document.getElementById('profs').innerHTML=renderProfiles(d);
-}
-function resetForm(){
-  _edit=-1;
-  document.getElementById('ssid').value='';
-  document.getElementById('pw').value='';
-  document.getElementById('ft').textContent='Add Network';
-  document.getElementById('savebtn').textContent='Save Network';
-  document.getElementById('cancelbtn').style.display='none';
-}
-function editProfile(i){
-  var p=_profiles[i];
-  _edit=i;
-  document.getElementById('ssid').value=p.ssid;
-  document.getElementById('pw').value=p.password || '';
-  document.getElementById('ft').textContent='Edit Network';
-  document.getElementById('savebtn').textContent='Update Network';
-  document.getElementById('cancelbtn').style.display='inline-block';
-}
-function cancelEdit(){
-  resetForm();
-}
-function connectRequest(ssid,pw){
-  setWifiMsg('Starting connection to ' + ssid + '...');
-  return fetch('/api/wifi/connect',{method:'POST',body:ssid+'\\n'+(pw || '')}).then(function(r){
-    return r.json();
-  }).then(function(d){
-    if(d.ok && d.pending){
-      setWifiMsg('Trying to join ' + ssid + '. This page may stop updating while PicoOne switches networks. Reopen http://pico.local/ after it reconnects.');
-    }else if(d.busy){
-      setWifiMsg('Another Wi-Fi connection attempt is already in progress.');
-    }else{
-      setWifiMsg('Failed to start connection to ' + ssid + '.');
+
+def _json_script_value(value):
+    return json.dumps(value).replace("</", "<\\/")
+
+
+def _read_static_text(path):
+    try:
+        with open(path, "r") as f:
+            return f.read()
+    except OSError:
+        return "document.getElementById('app').textContent='Missing static asset: {}';".format(path)
+
+
+def _build_bootstrap(led_ctrl):
+    return {
+        "pattern_names": list(PATTERN_NAMES),
+        "led_mode": led_ctrl.mode,
+        "notes": load_notes(),
+        "sysinfo": get_info(),
+        "wifi_current": get_current(),
+        "wifi_profiles": get_profiles(),
     }
-  }).catch(function(){
-    setWifiMsg('Connection request did not complete. Refresh and try again.');
-  });
-}
-function connProfile(i){
-  var p=_profiles[i];
-  connectRequest(p.ssid,p.password || '');
-}
-function saveProfile(){
-  var ssid=document.getElementById('ssid').value.trim();
-  var pw=document.getElementById('pw').value;
-  if(!ssid){setWifiMsg('SSID is required.');return;}
-  fetch('/api/wifi/profile',{method:'POST',body:String(_edit)+'\\n'+ssid+'\\n'+pw}).then(function(r){
-    return r.json();
-  }).then(function(d){
-    setProfiles(d);
-    resetForm();
-    setWifiMsg('Saved ' + ssid + '.');
-  }).catch(function(){
-    setWifiMsg('Saving the network failed.');
-  });
-}
-function load(){
-  return fetch('/api/wifi/profiles').then(function(r){
-    return r.json();
-  }).then(function(d){
-    setProfiles(d);
-  });
-}
-function mv(i,dir){
-  fetch('/api/wifi/move?i='+i+'&d='+dir,{method:'POST'}).then(function(r){
-    return r.json();
-  }).then(function(d){
-    setProfiles(d);
-    resetForm();
-  });
-}
-function rm(i){
-  fetch('/api/wifi/del?i='+i,{method:'POST'}).then(function(r){
-    return r.json();
-  }).then(function(d){
-    setProfiles(d);
-    resetForm();
-  });
-}
-resetForm();
-load();
-</script></body></html>"""
 
 
-_WIFI_SCAN = """<!DOCTYPE html><html><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PicoOne &mdash; WiFi Scan</title><style>%s
-.net{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;margin-bottom:8px;
-     display:flex;justify-content:space-between;align-items:center}
-.net .info{flex:1}
-.net .ssid{font-size:.95rem}
-.net .meta{color:#888;font-size:.8rem}
-.conn-form{margin-top:8px;display:none;gap:8px}
-.conn-form input{flex:1}
-.conn-form.show{display:flex}
-h2.sec{margin:20px 0 10px;font-size:1rem;color:#888}
-.cur{background:#0d5;color:#000;border-radius:10px;padding:12px;margin-bottom:16px;font-size:.9rem}
-.wifi-msg{color:#888;font-size:.9rem;min-height:1.2rem;margin:0 0 16px}
-.nav{display:flex;gap:8px;margin-bottom:16px}
-.nav a{text-decoration:none}
-</style></head><body>
-<h1>WiFi Scan</h1>
-<a class="back" href="/wifi">&larr; Saved Networks</a>
-<div class="wrap">
-<div id="cur"></div>
-<div id="wm" class="wifi-msg"></div>
-<div class="nav"><a class="btn" href="/wifi">Saved Networks</a></div>
-<h2 class="sec">Available Networks</h2>
-<div id="scan">Scanning...</div>
-</div>
-<script>
-function esc(s){
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function setWifiMsg(msg){
-  document.getElementById('wm').textContent=msg || '';
-}
-var _nets=[];
-function renderNetwork(n,i){
-  var saved=n.saved ? ' &middot; saved' : '';
-  var sec=n.secure ? ' &middot; secured' : ' &middot; open';
-  return [
-    '<div class="net"><div class="info">',
-    '<div class="ssid">',esc(n.ssid),'</div>',
-    '<div class="meta">',n.rssi,' dBm',saved,sec,'</div>',
-    '<div class="conn-form" id="cf',i,
-    '"><input type="password" id="pw',i,
-    '" placeholder="Password"><button onclick="conn(',i,
-    ')">Connect</button></div>',
-    '</div><button onclick="toggle(',i,
-    ')" style="padding:8px 12px;font-size:.8rem">Join</button></div>'
-  ].join('');
-}
-function connectRequest(ssid,pw){
-  setWifiMsg('Starting connection to ' + ssid + '...');
-  return fetch('/api/wifi/connect',{method:'POST',body:ssid+'\\n'+(pw || '')}).then(function(r){
-    return r.json();
-  }).then(function(d){
-    if(d.ok && d.pending){
-      setWifiMsg('Trying to join ' + ssid + '. This page may stop updating while PicoOne switches networks. Reopen http://pico.local/ after it reconnects.');
-    }else if(d.busy){
-      setWifiMsg('Another Wi-Fi connection attempt is already in progress.');
-    }else{
-      setWifiMsg('Failed to start connection to ' + ssid + '.');
-    }
-  }).catch(function(){
-    setWifiMsg('Connection request did not complete. Refresh and try again.');
-  });
-}
-function load(){
-  return fetch('/api/wifi/status').then(function(r){return r.json();}).then(function(d){
-    if(d.connected){
-      document.getElementById('cur').innerHTML='<div class="cur">Connected to <b>'+esc(d.ssid)+'</b> &mdash; '+d.ip+' ('+d.rssi+' dBm)</div>';
-    }else{
-      document.getElementById('cur').innerHTML='<div class="cur" style="background:#c33;color:#fff">Not connected</div>';
-    }
-  });
-}
-function scan(){
-  document.getElementById('scan').innerHTML='Scanning...';
-  return fetch('/api/wifi/scan').then(function(r){
-    return r.json();
-  }).then(function(d){
-    _nets=d;
-    document.getElementById('scan').innerHTML=d.length ? d.map(renderNetwork).join('') : '<div class="empty">No networks found.</div>';
-  });
-}
-function toggle(i){
-  var el=document.getElementById('cf'+i);
-  el.classList.toggle('show');
-}
-function conn(i){
-  var ssid=_nets[i].ssid;
-  var pw=document.getElementById('pw'+i).value;
-  connectRequest(ssid,pw);
-}
-load().then(scan);
-</script></body></html>"""
+def _build_shell(led_ctrl):
+    return _INDEX_HTML % (_CSS, _json_script_value(_build_bootstrap(led_ctrl)))
 
 
-# ---------------------------------------------------------------------------
-# Builders
-# ---------------------------------------------------------------------------
-def _build_buttons(active_mode):
-    b = ""
-    for i, name in enumerate(PATTERN_NAMES):
-        cls = ' class="active"' if i == active_mode else ""
-        b += '<button data-m="{i}"{cls} onclick="pick({i})">{name}</button>\n'.format(
-            i=i, cls=cls, name=name
-        )
-    return b
-
-
-def _build_notes_html(notes):
-    if not notes:
-        return '<div class="empty">No notes yet.</div>'
-    parts = []
-    for i, n in enumerate(notes):
-        safe = n.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        parts.append(
-            '<div class="note"><span id="n{i}">{n}</span>'
-            '<div class="acts"><span onclick="editNote({i})">edit</span>'
-            '<span onclick="delNote({i})">del</span></div></div>'.format(i=i, n=safe)
-        )
-    return "".join(parts)
-
-
-def _build_sysinfo_html(info):
-    rows = [
-        ("Temperature", "{} C".format(info["temp_c"])),
-        ("CPU", "{} MHz".format(info["cpu_mhz"])),
-        ("RAM", "{} / {} KB ({}% used)".format(info["ram_free_kb"], info["ram_total_kb"], info["ram_pct"])),
-        ("Uptime", info["uptime"]),
-        ("WiFi Network", info["ssid"]),
-        ("WiFi RSSI", "{} dBm".format(info["rssi"])),
-        ("IP", info["ip"]),
-    ]
-    return "".join('<div class="row"><span class="k">{}</span><span class="v">{}</span></div>'.format(k, v) for k, v in rows)
+def _build_redirect(path):
+    route = _LEGACY_ROUTES.get(path, "/")
+    return _REDIRECT_HTML % (route, route)
 
 
 def _url_decode(s):
@@ -521,9 +181,6 @@ def _json_notes():
     return json.dumps({"notes": load_notes()})
 
 
-# ---------------------------------------------------------------------------
-# Server
-# ---------------------------------------------------------------------------
 def start_server(led_ctrl, port=80):
     addr = socket.getaddrinfo("0.0.0.0", port)[0][-1]
     s = socket.socket()
@@ -546,19 +203,28 @@ def _get_poller(s):
     return _poller
 
 
+def _send_all(cl, data):
+    if isinstance(data, str):
+        data = data.encode()
+    view = memoryview(data)
+    sent_total = 0
+    while sent_total < len(view):
+        sent = cl.send(view[sent_total:])
+        if sent is None or sent <= 0:
+            raise OSError("socket send failed")
+        sent_total += sent
+
+
 def _send(cl, ctype, body):
     if isinstance(body, str):
         body = body.encode()
-    cl.send(
-        "HTTP/1.0 200 OK\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n".format(
+    _send_all(
+        cl,
+        "HTTP/1.0 200 OK\r\nContent-Type: {}; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n".format(
             ctype, len(body)
-        )
+        ),
     )
-    i = 0
-    while i < len(body):
-        chunk = body[i:i + 512]
-        cl.send(chunk)
-        i += len(chunk)
+    _send_all(cl, body)
 
 
 def _queue_wifi_connect(ssid, password, delay_ms=800):
@@ -595,7 +261,7 @@ def _run_pending_wifi_connect():
 def handle_client(s, led_ctrl):
     _run_pending_wifi_connect()
     poller = _get_poller(s)
-    events = poller.poll(100)  # wait up to 100ms
+    events = poller.poll(100)
     if not events:
         return
     try:
@@ -608,14 +274,13 @@ def handle_client(s, led_ctrl):
         path = ""
         if request.startswith("GET ") or request.startswith("POST "):
             path = request.split(" ", 2)[1]
+        path_only = path.split("?", 1)[0]
 
-        # Ignore favicon requests
-        if path == "/favicon.ico":
-            cl.send("HTTP/1.0 204 No Content\r\n\r\n")
+        if path_only == "/favicon.ico":
+            _send_all(cl, "HTTP/1.0 204 No Content\r\nConnection: close\r\n\r\n")
             cl.close()
             return
 
-        # --- API: LED mode ---
         if path.startswith("/set?"):
             try:
                 qs = path.split("?", 1)[1]
@@ -626,7 +291,12 @@ def handle_client(s, led_ctrl):
                 pass
             _send(cl, "application/json", json.dumps({"mode": led_ctrl.mode}))
 
-        # --- API: Notes ---
+        elif path == "/api/led":
+            _send(cl, "application/json", json.dumps({"mode": led_ctrl.mode, "pattern_names": list(PATTERN_NAMES)}))
+
+        elif path == "/api/bootstrap":
+            _send(cl, "application/json", json.dumps(_build_bootstrap(led_ctrl)))
+
         elif path == "/notes/add" and "POST" in request:
             text = _read_body(cl, request)
             add_note(_url_decode(text))
@@ -651,11 +321,9 @@ def handle_client(s, led_ctrl):
                     pass
             _send(cl, "application/json", _json_notes())
 
-        # --- API: System Info ---
         elif path == "/api/sysinfo":
             _send(cl, "application/json", json.dumps(get_info()))
 
-        # --- API: Morse ---
         elif path.startswith("/api/morse") and "POST" in request:
             wpm = 12
             try:
@@ -671,26 +339,6 @@ def handle_client(s, led_ctrl):
             else:
                 _send(cl, "application/json", '{"ok":false}')
 
-        # --- Pages ---
-        elif path == "/led":
-            _send(cl, "text/html", _LED % (_CSS, _build_buttons(led_ctrl.mode)))
-
-        elif path == "/notes":
-            _send(cl, "text/html", _NOTES % (_CSS, _build_notes_html(load_notes())))
-
-        elif path == "/sysinfo":
-            _send(cl, "text/html", _SYSINFO % (_CSS, _build_sysinfo_html(get_info())))
-
-        elif path == "/morse":
-            _send(cl, "text/html", _MORSE % _CSS)
-
-        elif path == "/wifi":
-            _send(cl, "text/html", _WIFI % _CSS)
-
-        elif path == "/wifi/scan":
-            _send(cl, "text/html", _WIFI_SCAN % _CSS)
-
-        # --- API: WiFi ---
         elif path == "/api/wifi/status":
             _send(cl, "application/json", json.dumps(get_current()))
 
@@ -738,8 +386,14 @@ def handle_client(s, led_ctrl):
                 pass
             _send(cl, "application/json", json.dumps(get_profiles()))
 
+        elif path_only == "/static/app.js":
+            _send(cl, "application/javascript", _read_static_text(_STATIC_APP_JS))
+
+        elif path_only in _LEGACY_ROUTES:
+            _send(cl, "text/html", _build_redirect(path_only))
+
         else:
-            _send(cl, "text/html", _HOME % _CSS)
+            _send(cl, "text/html", _build_shell(led_ctrl))
 
     except Exception as e:
         print("client error:", e)

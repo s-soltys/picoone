@@ -18,82 +18,15 @@ from wifi_manager import (
 )
 
 
-_CSS = """*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,sans-serif;background:#111;color:#eee}
-#app{min-height:100vh}
-.app-shell{max-width:460px;margin:0 auto;padding:24px 18px 32px}
-.title{margin:0;font-size:1.8rem;letter-spacing:.02em}
-.sub{color:#8a8a8a;margin:6px 0 0;font-size:.95rem;line-height:1.5}
-.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
-.toolbar .btn{padding:10px 14px}
-.panel{background:#1a1a1a;border:1px solid #333;border-radius:16px;padding:18px 16px;margin-bottom:14px}
-.panel h2{margin:0 0 6px;font-size:1.1rem}
-.panel p{margin:0;color:#8a8a8a;font-size:.9rem;line-height:1.4}
-.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.card{display:block;text-decoration:none;color:inherit;background:#1a1a1a;border:2px solid #333;border-radius:16px;padding:18px 16px;transition:background .15s,border-color .15s;min-width:0}
-.card h2{margin:0;font-size:1.1rem;line-height:1.1}
-.card p{margin:12px 0 0;color:#8a8a8a;font-size:.9rem;line-height:1.35}
-.card:hover,.card:focus{background:#202020;border-color:#555}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-button,.btn{padding:12px 10px;border:2px solid #333;border-radius:12px;background:#1a1a1a;color:#ddd;font-size:.95rem;cursor:pointer;transition:background .15s,border-color .15s}
-button:hover,.btn:hover{background:#222;border-color:#555}
-button.active{background:#0d5;color:#000;border-color:#0d5;font-weight:700}
-button.primary,.btn.primary{background:#28a;border-color:#28a;color:#fff}
-button.primary:hover,.btn.primary:hover{background:#39b;border-color:#39b}
-button.warn{background:#c33;border-color:#c33;color:#fff}
-button[disabled]{opacity:.55;cursor:default}
-.row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #262626}
-.row:last-child{border-bottom:0}
-.row .k{color:#8a8a8a;font-size:.9rem}
-.row .v{font-size:.9rem;text-align:right}
-.stack{display:flex;flex-direction:column;gap:12px}
-.note-form{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
-.note{background:#151515;border:1px solid #333;border-radius:12px;padding:12px 12px 14px;position:relative;white-space:pre-wrap;word-wrap:break-word}
-.acts{display:flex;gap:10px;flex-wrap:wrap}
-.acts span,.text-btn{color:#bdbdbd;cursor:pointer;font-size:.86rem}
-.acts span:hover,.text-btn:hover{color:#fff}
-.empty{color:#666;font-style:italic;font-size:.92rem}
-.field{width:100%;padding:10px 12px;border:2px solid #333;border-radius:12px;background:#111;color:#eee;font-size:.95rem;font-family:inherit}
-textarea.field{min-height:82px;resize:vertical}
-input[type=range]{width:100%}
-.ctr{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.status{border-radius:12px;padding:12px 14px;font-size:.92rem;line-height:1.4}
-.status.good{background:#0d5;color:#000}
-.status.bad{background:#c33;color:#fff}
-.status.neutral{background:#202020;color:#ddd;border:1px solid #333}
-.split{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.meta{color:#8a8a8a;font-size:.82rem;margin-top:4px}
-.nav{display:flex;gap:8px;flex-wrap:wrap}
-.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#202020;border:1px solid #333;color:#bdbdbd;font-size:.78rem}
-.section-title{margin:6px 0 10px;font-size:1rem;color:#9b9b9b}
-.net,.prof{background:#151515;border:1px solid #333;border-radius:12px;padding:12px}
-.conn-form{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.spacer{height:6px}
-.footer-note{color:#767676;font-size:.82rem;line-height:1.4}
-.touch-wrap{display:flex;flex-direction:column;gap:12px}
-.touch-canvas{display:block;width:100%;height:auto;border:2px solid #333;border-radius:18px;background:#151515;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
-.touch-canvas:focus{outline:none;border-color:#888}
-.touch-canvas.active{border-color:#0d5}
-.touch-state{text-align:center;font-size:.95rem}
-.touch-hint{color:#8a8a8a;font-size:.9rem;line-height:1.4;text-align:center}
-.loading{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center;color:#9a9a9a}
-@media (max-width:560px){
-  .home-grid{grid-template-columns:1fr}
-}
-@media (max-width:420px){
-  .app-shell{padding:18px 14px 28px}
-  .grid{grid-template-columns:1fr}
-  .toolbar{align-items:flex-start;flex-direction:column}
-}
-"""
+_BOOTSTRAP_CSS_URL = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
 
 
-_INDEX_HTML = """<!DOCTYPE html><html><head>
+_INDEX_HTML = """<!DOCTYPE html><html data-bs-theme="dark"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PicoOne</title>
-<style>%s</style>
-</head><body>
-<div id="app" class="loading">Loading...</div>
+<link rel="stylesheet" href="%s">
+</head><body class="bg-body-tertiary">
+<div id="app" class="min-vh-100 d-flex align-items-center justify-content-center p-4 text-center text-body-secondary">Loading...</div>
 <script>window.__PICO_BOOTSTRAP__=%s;window.setTimeout(function(){if(!window.__pico_app_started){var root=document.getElementById('app');if(root){root.innerHTML='PicoOne needs to load Preact from the CDN. Connect this browser to the internet and reload.';}}},4000);</script>
 <script src="https://unpkg.com/preact@10.26.4/dist/preact.umd.js"></script>
 <script src="https://unpkg.com/preact@10.26.4/hooks/dist/hooks.umd.js"></script>
@@ -147,7 +80,7 @@ def _build_bootstrap(led_ctrl):
 
 
 def _build_shell(led_ctrl):
-    return _INDEX_HTML % (_CSS, _json_script_value(_build_bootstrap(led_ctrl)))
+    return _INDEX_HTML % (_BOOTSTRAP_CSS_URL, _json_script_value(_build_bootstrap(led_ctrl)))
 
 
 def _build_redirect(path):

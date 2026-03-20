@@ -108,21 +108,32 @@
   function Header(props) {
     if (props.route === "/") {
       return html`
-        <div class="panel">
-          <h1 class="title">PicoOne</h1>
-          <p class="sub">pico.local</p>
-          <p class="sub">Served by the Pico, routed as a single-page app, rendered with CDN-hosted Preact.</p>
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+              <div>
+                <h1 class="h2 mb-1">PicoOne</h1>
+                <p class="text-body-secondary mb-0">pico.local</p>
+              </div>
+              <span class="badge rounded-pill text-bg-secondary align-self-start">CDN UI</span>
+            </div>
+            <p class="text-body-secondary mt-3 mb-0">
+              Served by the Pico, routed as a single-page app, rendered with CDN-hosted Preact and Bootstrap.
+            </p>
+          </div>
         </div>
       `;
     }
     return html`
-      <div class="toolbar">
-        <button onClick=${props.onHome}>Home</button>
-        <span class="pill">pico.local</span>
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <button class="btn btn-outline-secondary" onClick=${props.onHome}>Home</button>
+        <span class="badge rounded-pill text-bg-secondary">pico.local</span>
       </div>
-      <div class="panel">
-        <h1 class="title">${ROUTE_TITLES[props.route]}</h1>
-        <p class="sub">${ROUTE_SUBTITLES[props.route]}</p>
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+          <h1 class="h2 mb-2">${ROUTE_TITLES[props.route]}</h1>
+          <p class="text-body-secondary mb-0">${ROUTE_SUBTITLES[props.route]}</p>
+        </div>
       </div>
     `;
   }
@@ -137,13 +148,17 @@
       { route: "/wifi", title: "WiFi", desc: "Manage networks" },
     ];
     return html`
-      <div class="home-grid">
+      <div class="row row-cols-1 row-cols-sm-2 g-3">
         ${cards.map(function (card) {
           return html`
-            <a key=${card.route} class="card" href=${routeHref(card.route)}>
-              <h2>${card.title}</h2>
-              <p>${card.desc}</p>
-            </a>
+            <div key=${card.route} class="col">
+              <a class="card h-100 shadow-sm border-0 text-decoration-none text-reset" href=${routeHref(card.route)}>
+                <div class="card-body p-4">
+                  <h2 class="h5 mb-2">${card.title}</h2>
+                  <p class="text-body-secondary mb-0">${card.desc}</p>
+                </div>
+              </a>
+            </div>
           `;
         })}
       </div>
@@ -152,38 +167,51 @@
 
   function InfoRows(props) {
     if (!props.rows || !props.rows.length) {
-      return html`<div class="panel"><div class="empty">Nothing to show.</div></div>`;
+      return html`
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4 text-body-secondary fst-italic text-center">Nothing to show.</div>
+        </div>
+      `;
     }
     return html`
-      <div class="panel">
-        ${props.rows.map(function (row, index) {
-          return html`
-            <div key=${index} class="row">
-              <span class="k">${row[0]}</span>
-              <span class="v">${row[1]}</span>
-            </div>
-          `;
-        })}
+      <div class="card shadow-sm border-0">
+        <div class="list-group list-group-flush">
+          ${props.rows.map(function (row, index) {
+            return html`
+              <div key=${index} class="list-group-item bg-transparent px-4 py-3">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                  <span class="text-body-secondary small">${row[0]}</span>
+                  <span class="text-end">${row[1]}</span>
+                </div>
+              </div>
+            `;
+          })}
+        </div>
       </div>
     `;
   }
 
   function LedView(props) {
     return html`
-      <div class="grid">
-        ${props.patternNames.map(function (name, index) {
-          return html`
-            <button
-              key=${name}
-              class=${index === props.ledMode ? "active" : ""}
-              onClick=${function () {
-                props.onPick(index);
-              }}
-            >
-              ${name}
-            </button>
-          `;
-        })}
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-3">
+          <div class="row row-cols-1 row-cols-sm-2 g-2">
+            ${props.patternNames.map(function (name, index) {
+              return html`
+                <div key=${name} class="col">
+                  <button
+                    class=${"btn w-100 py-3 " + (index === props.ledMode ? "btn-success" : "btn-outline-secondary")}
+                    onClick=${function () {
+                      props.onPick(index);
+                    }}
+                  >
+                    ${name}
+                  </button>
+                </div>
+              `;
+            })}
+          </div>
+        </div>
       </div>
     `;
   }
@@ -296,26 +324,35 @@
     }
 
     return html`
-      <div class="panel">
-        <div class="touch-wrap">
-          <canvas
-            ref=${canvasRef}
-            class=${"touch-canvas" + (props.active ? " active" : "")}
-            width=${320}
-            height=${280}
-            tabIndex="0"
-            onPointerDown=${pressStart}
-            onPointerUp=${pressEnd}
-            onPointerCancel=${pressEnd}
-            onLostPointerCapture=${pressEnd}
-            onContextMenu=${function (event) {
-              event.preventDefault();
-            }}
-            onKeyDown=${keyDown}
-            onKeyUp=${keyUp}
-          ></canvas>
-          <div class="touch-state">${props.active ? "LED on" : "LED off"}</div>
-          <div class="touch-hint">Press and hold the pad. Release to turn the LED back off.</div>
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-3 p-sm-4">
+          <div class="d-flex flex-column gap-3">
+            <canvas
+              ref=${canvasRef}
+              class=${"w-100 d-block rounded-4 border border-2 bg-body-tertiary " + (props.active ? "border-success" : "border-secondary")}
+              width=${320}
+              height=${280}
+              tabIndex="0"
+              style=${{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
+              onPointerDown=${pressStart}
+              onPointerUp=${pressEnd}
+              onPointerCancel=${pressEnd}
+              onLostPointerCapture=${pressEnd}
+              onContextMenu=${function (event) {
+                event.preventDefault();
+              }}
+              onKeyDown=${keyDown}
+              onKeyUp=${keyUp}
+            ></canvas>
+            <div class="text-center">
+              <div class=${"fw-semibold " + (props.active ? "text-success" : "text-body")}>
+                ${props.active ? "LED on" : "LED off"}
+              </div>
+              <div class="text-body-secondary small mt-1">
+                Press and hold the pad. Release to turn the LED back off.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -323,58 +360,72 @@
 
   function NotesView(props) {
     return html`
-      <div class="panel">
-        <div class="note-form">
-          <textarea
-            class="field"
-            placeholder="Write a note..."
-            value=${props.noteDraft}
-            onInput=${function (event) {
-              props.onDraft(event.currentTarget.value);
-            }}
-          ></textarea>
-          <button class="primary" disabled=${props.busy} onClick=${props.onAdd}>Add Note</button>
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+          <div class="d-grid gap-3">
+            <textarea
+              class="form-control"
+              rows="4"
+              placeholder="Write a note..."
+              value=${props.noteDraft}
+              onInput=${function (event) {
+                props.onDraft(event.currentTarget.value);
+              }}
+            ></textarea>
+            <div class="d-grid d-sm-flex justify-content-sm-start">
+              <button class="btn btn-primary" type="button" disabled=${props.busy} onClick=${props.onAdd}>Add Note</button>
+            </div>
+            ${props.notes.length
+              ? html`
+                  <div class="d-grid gap-3">
+                    ${props.notes.map(function (note, index) {
+                      return html`
+                        <div key=${index} class="card bg-body-tertiary border-secondary-subtle">
+                          <div class="card-body">
+                            <div style=${{ whiteSpace: "pre-wrap", wordWrap: "break-word" }}>${note}</div>
+                            <div class="d-flex flex-wrap gap-2 mt-3">
+                              <button
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                onClick=${function () {
+                                  props.onEdit(index);
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                class="btn btn-sm btn-outline-danger"
+                                onClick=${function () {
+                                  props.onDelete(index);
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      `;
+                    })}
+                  </div>
+                `
+              : html`<div class="text-body-secondary fst-italic">No notes yet.</div>`}
+          </div>
         </div>
-        ${props.notes.length
-          ? html`
-              <div class="stack">
-                ${props.notes.map(function (note, index) {
-                  return html`
-                    <div key=${index} class="note">
-                      <div>${note}</div>
-                      <div class="spacer"></div>
-                      <div class="acts">
-                        <span
-                          onClick=${function () {
-                            props.onEdit(index);
-                          }}
-                        >
-                          edit
-                        </span>
-                        <span
-                          onClick=${function () {
-                            props.onDelete(index);
-                          }}
-                        >
-                          del
-                        </span>
-                      </div>
-                    </div>
-                  `;
-                })}
-              </div>
-            `
-          : html`<div class="empty">No notes yet.</div>`}
       </div>
     `;
   }
 
   function SysinfoView(props) {
     if (props.error) {
-      return html`<div class="status bad">${props.error}</div>`;
+      return html`<div class="alert alert-danger mb-0">${props.error}</div>`;
     }
     if (!props.info) {
-      return html`<div class="panel"><div class="empty">Loading system info...</div></div>`;
+      return html`
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4 text-body-secondary fst-italic text-center">Loading system info...</div>
+        </div>
+      `;
     }
     var rows = [
       ["Temperature", props.info.temp_c + " C"],
@@ -390,33 +441,38 @@
 
   function MorseView(props) {
     return html`
-      <div class="panel">
-        <div class="stack">
-          <input
-            class="field"
-            type="text"
-            placeholder="Type your message..."
-            value=${props.text}
-            onInput=${function (event) {
-              props.onText(event.currentTarget.value);
-            }}
-          />
-          <label class="sub">
-            Speed: <strong>${props.wpm}</strong> WPM
-          </label>
-          <input
-            type="range"
-            min="5"
-            max="25"
-            value=${props.wpm}
-            onInput=${function (event) {
-              props.onWpm(parseInt(event.currentTarget.value, 10) || 12);
-            }}
-          />
-          <div class="ctr">
-            <button class="primary" disabled=${props.busy} onClick=${props.onSend}>Send via LED</button>
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+          <div class="d-grid gap-3">
+            <input
+              class="form-control"
+              type="text"
+              placeholder="Type your message..."
+              value=${props.text}
+              onInput=${function (event) {
+                props.onText(event.currentTarget.value);
+              }}
+            />
+            <label class="form-label mb-0">
+              Speed: <strong>${props.wpm}</strong> WPM
+            </label>
+            <input
+              class="form-range"
+              type="range"
+              min="5"
+              max="25"
+              value=${props.wpm}
+              onInput=${function (event) {
+                props.onWpm(parseInt(event.currentTarget.value, 10) || 12);
+              }}
+            />
+            <div class="d-grid d-sm-flex justify-content-sm-center">
+              <button class="btn btn-primary" type="button" disabled=${props.busy} onClick=${props.onSend}>
+                Send via LED
+              </button>
+            </div>
+            ${props.status ? html`<div class="alert alert-secondary mb-0">${props.status}</div>` : null}
           </div>
-          ${props.status ? html`<div class="status neutral">${props.status}</div>` : null}
         </div>
       </div>
     `;
@@ -424,127 +480,150 @@
 
   function WifiCurrentCard(props) {
     if (!props.current.connected) {
-      return html`<div class="status bad">Not connected</div>`;
+      return html`<div class="alert alert-warning mb-0">Not connected</div>`;
     }
     return html`
-      <div class="status good">
-        Connected to <strong>${props.current.ssid}</strong><br />
-        ${props.current.ip} (${props.current.rssi} dBm)
+      <div class="alert alert-success mb-0">
+        Connected to <strong>${props.current.ssid}</strong>
+        <div class="small mt-1">${props.current.ip} (${props.current.rssi} dBm)</div>
       </div>
     `;
   }
 
   function WifiView(props) {
     return html`
-      <div class="stack">
-        <div class="panel">
-          <h2>Current Connection</h2>
-          <div class="spacer"></div>
-          <${WifiCurrentCard} current=${props.current} />
+      <div class="d-grid gap-3">
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <h2 class="h5 mb-3">Current Connection</h2>
+            <${WifiCurrentCard} current=${props.current} />
+          </div>
         </div>
-        ${props.message ? html`<div class="status neutral">${props.message}</div>` : null}
-        <div class="nav">
-          <a class="btn" href=${routeHref("/wifi/scan")}>Scan Networks</a>
+        ${props.message ? html`<div class="alert alert-secondary mb-0">${props.message}</div>` : null}
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-outline-primary" href=${routeHref("/wifi/scan")}>Scan Networks</a>
         </div>
-        <div class="panel">
-          <h2>Saved Networks</h2>
-          <p class="sub">Priority order decides what the Pico tries first on boot.</p>
-          <div class="spacer"></div>
-          ${props.profiles.length
-            ? html`
-                <div class="stack">
-                  ${props.profiles.map(function (profile, index) {
-                    return html`
-                      <div key=${profile.ssid + ":" + index} class="prof">
-                        <div class="split">
-                          <div>
-                            <strong>${profile.ssid}</strong>
-                            <div class="meta">${profile.password ? "Password saved" : "Open network"}</div>
-                          </div>
-                          <div class="acts">
-                            <span
-                              onClick=${function () {
-                                props.onConnect(profile.ssid, profile.password || "");
-                              }}
-                            >
-                              join
-                            </span>
-                            <span
-                              onClick=${function () {
-                                props.onEdit(index);
-                              }}
-                            >
-                              edit
-                            </span>
-                            ${index > 0
-                              ? html`
-                                  <span
-                                    onClick=${function () {
-                                      props.onMove(index, -1);
-                                    }}
-                                  >
-                                    up
-                                  </span>
-                                `
-                              : null}
-                            ${index < props.profiles.length - 1
-                              ? html`
-                                  <span
-                                    onClick=${function () {
-                                      props.onMove(index, 1);
-                                    }}
-                                  >
-                                    down
-                                  </span>
-                                `
-                              : null}
-                            <span
-                              onClick=${function () {
-                                props.onDelete(index);
-                              }}
-                            >
-                              del
-                            </span>
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <h2 class="h5 mb-1">Saved Networks</h2>
+            <p class="text-body-secondary mb-0">Priority order decides what the Pico tries first on boot.</p>
+            ${props.profiles.length
+              ? html`
+                  <div class="d-grid gap-3 mt-3">
+                    ${props.profiles.map(function (profile, index) {
+                      return html`
+                        <div key=${profile.ssid + ":" + index} class="card bg-body-tertiary border-secondary-subtle">
+                          <div class="card-body py-3">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+                              <div>
+                                <div class="fw-semibold">${profile.ssid}</div>
+                                <div class="small text-body-secondary mt-1">
+                                  ${profile.password ? "Password saved" : "Open network"}
+                                </div>
+                              </div>
+                              <div class="d-flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  class="btn btn-sm btn-primary"
+                                  onClick=${function () {
+                                    props.onConnect(profile.ssid, profile.password || "");
+                                  }}
+                                >
+                                  Join
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn btn-sm btn-outline-secondary"
+                                  onClick=${function () {
+                                    props.onEdit(index);
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                ${index > 0
+                                  ? html`
+                                      <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        onClick=${function () {
+                                          props.onMove(index, -1);
+                                        }}
+                                      >
+                                        Up
+                                      </button>
+                                    `
+                                  : null}
+                                ${index < props.profiles.length - 1
+                                  ? html`
+                                      <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        onClick=${function () {
+                                          props.onMove(index, 1);
+                                        }}
+                                      >
+                                        Down
+                                      </button>
+                                    `
+                                  : null}
+                                <button
+                                  type="button"
+                                  class="btn btn-sm btn-outline-danger"
+                                  onClick=${function () {
+                                    props.onDelete(index);
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    `;
-                  })}
-                </div>
-              `
-            : html`<div class="empty">No saved networks.</div>`}
+                      `;
+                    })}
+                  </div>
+                `
+              : html`<div class="text-body-secondary fst-italic mt-3">No saved networks.</div>`}
+          </div>
         </div>
-        <div class="panel">
-          <h2>${props.editIndex >= 0 ? "Edit Network" : "Add Network"}</h2>
-          <div class="spacer"></div>
-          <div class="stack">
-            <input
-              class="field"
-              type="text"
-              placeholder="SSID"
-              value=${props.ssid}
-              onInput=${function (event) {
-                props.onSsid(event.currentTarget.value);
-              }}
-            />
-            <input
-              class="field"
-              type="password"
-              placeholder="Password (leave blank for open network)"
-              value=${props.password}
-              onInput=${function (event) {
-                props.onPassword(event.currentTarget.value);
-              }}
-            />
-            <div class="ctr">
-              <button class="primary" disabled=${props.busy} onClick=${props.onSave}>
-                ${props.editIndex >= 0 ? "Update Network" : "Save Network"}
-              </button>
-              ${props.editIndex >= 0
-                ? html`<button disabled=${props.busy} onClick=${props.onCancel}>Cancel</button>`
-                : null}
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <h2 class="h5 mb-3">${props.editIndex >= 0 ? "Edit Network" : "Add Network"}</h2>
+            <div class="d-grid gap-3">
+              <input
+                class="form-control"
+                type="text"
+                placeholder="SSID"
+                value=${props.ssid}
+                onInput=${function (event) {
+                  props.onSsid(event.currentTarget.value);
+                }}
+              />
+              <input
+                class="form-control"
+                type="password"
+                placeholder="Password (leave blank for open network)"
+                value=${props.password}
+                onInput=${function (event) {
+                  props.onPassword(event.currentTarget.value);
+                }}
+              />
+              <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-sm-start">
+                <button class="btn btn-primary" type="button" disabled=${props.busy} onClick=${props.onSave}>
+                  ${props.editIndex >= 0 ? "Update Network" : "Save Network"}
+                </button>
+                ${props.editIndex >= 0
+                  ? html`
+                      <button class="btn btn-outline-secondary" type="button" disabled=${props.busy} onClick=${props.onCancel}>
+                        Cancel
+                      </button>
+                    `
+                  : null}
+              </div>
+              <div class="form-text">
+                Save networks here, then use Join from the saved list when needed.
+              </div>
             </div>
-            <div class="footer-note">Save networks here, then use Join from the saved list when needed.</div>
           </div>
         </div>
       </div>
@@ -553,74 +632,97 @@
 
   function WifiScanView(props) {
     return html`
-      <div class="stack">
-        <div class="panel">
-          <h2>Current Connection</h2>
-          <div class="spacer"></div>
-          <${WifiCurrentCard} current=${props.current} />
+      <div class="d-grid gap-3">
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <h2 class="h5 mb-3">Current Connection</h2>
+            <${WifiCurrentCard} current=${props.current} />
+          </div>
         </div>
-        ${props.message ? html`<div class="status neutral">${props.message}</div>` : null}
-        <div class="nav">
-          <a class="btn" href=${routeHref("/wifi")}>Saved Networks</a>
-          <button onClick=${props.onScan} disabled=${props.busy}>${props.busy ? "Scanning..." : "Rescan"}</button>
+        ${props.message ? html`<div class="alert alert-secondary mb-0">${props.message}</div>` : null}
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-outline-primary" href=${routeHref("/wifi")}>Saved Networks</a>
+          <button class="btn btn-outline-secondary" onClick=${props.onScan} disabled=${props.busy}>
+            ${props.busy ? "Scanning..." : "Rescan"}
+          </button>
         </div>
-        ${props.error ? html`<div class="status bad">${props.error}</div>` : null}
-        <div class="panel">
-          <h2>Available Networks</h2>
-          <div class="spacer"></div>
-          ${props.networks.length
-            ? html`
-                <div class="stack">
-                  ${props.networks.map(function (network, index) {
-                    var showForm = !!props.open[index];
-                    return html`
-                      <div key=${network.ssid + ":" + index} class="net">
-                        <div class="split">
-                          <div>
-                            <strong>${network.ssid}</strong>
-                            <div class="meta">
-                              ${network.rssi} dBm
-                              ${network.saved ? html`<span class="pill">saved</span>` : null}
-                              <span class="pill">${network.secure ? "secured" : "open"}</span>
-                            </div>
-                          </div>
-                          <button
-                            onClick=${function () {
-                              props.onToggle(index);
-                            }}
-                          >
-                            ${network.secure ? "Join" : "Join Open"}
-                          </button>
-                        </div>
-                        ${network.secure && showForm
-                          ? html`
-                              <div class="conn-form">
-                                <input
-                                  class="field"
-                                  type="password"
-                                  placeholder="Password"
-                                  value=${props.passwords[index] || ""}
-                                  onInput=${function (event) {
-                                    props.onPassword(index, event.currentTarget.value);
-                                  }}
-                                />
-                                <button
-                                  class="primary"
-                                  onClick=${function () {
-                                    props.onConnect(index);
-                                  }}
-                                >
-                                  Connect
-                                </button>
+        ${props.error ? html`<div class="alert alert-danger mb-0">${props.error}</div>` : null}
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <h2 class="h5 mb-3">Available Networks</h2>
+            ${props.networks.length
+              ? html`
+                  <div class="d-grid gap-3">
+                    ${props.networks.map(function (network, index) {
+                      var showForm = !!props.open[index];
+                      return html`
+                        <div key=${network.ssid + ":" + index} class="card bg-body-tertiary border-secondary-subtle">
+                          <div class="card-body py-3">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+                              <div>
+                                <div class="fw-semibold">${network.ssid}</div>
+                                <div class="d-flex flex-wrap align-items-center gap-2 small text-body-secondary mt-1">
+                                  <span>${network.rssi} dBm</span>
+                                  ${network.saved
+                                    ? html`<span class="badge rounded-pill text-bg-secondary">Saved</span>`
+                                    : null}
+                                  <span
+                                    class=${"badge rounded-pill " + (network.secure ? "text-bg-warning" : "text-bg-success")}
+                                  >
+                                    ${network.secure ? "Secured" : "Open"}
+                                  </span>
+                                </div>
                               </div>
-                            `
-                          : null}
-                      </div>
-                    `;
-                  })}
-                </div>
-              `
-            : html`<div class="empty">${props.busy ? "Scanning..." : "No networks found."}</div>`}
+                              <button
+                                type="button"
+                                class=${"btn btn-sm " + (network.secure ? "btn-primary" : "btn-outline-primary")}
+                                onClick=${function () {
+                                  props.onToggle(index);
+                                }}
+                              >
+                                ${network.secure ? "Join" : "Join Open"}
+                              </button>
+                            </div>
+                            ${network.secure && showForm
+                              ? html`
+                                  <div class="row g-2 mt-2">
+                                    <div class="col-12 col-md">
+                                      <input
+                                        class="form-control"
+                                        type="password"
+                                        placeholder="Password"
+                                        value=${props.passwords[index] || ""}
+                                        onInput=${function (event) {
+                                          props.onPassword(index, event.currentTarget.value);
+                                        }}
+                                      />
+                                    </div>
+                                    <div class="col-12 col-md-auto">
+                                      <button
+                                        type="button"
+                                        class="btn btn-primary w-100"
+                                        onClick=${function () {
+                                          props.onConnect(index);
+                                        }}
+                                      >
+                                        Connect
+                                      </button>
+                                    </div>
+                                  </div>
+                                `
+                              : null}
+                          </div>
+                        </div>
+                      `;
+                    })}
+                  </div>
+                `
+              : html`
+                  <div class="text-body-secondary fst-italic">
+                    ${props.busy ? "Scanning..." : "No networks found."}
+                  </div>
+                `}
+          </div>
         </div>
       </div>
     `;
@@ -976,7 +1078,11 @@
     var content = null;
 
     if (!ready) {
-      content = html`<div class="panel"><div class="empty">Loading device state...</div></div>`;
+      content = html`
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4 text-body-secondary fst-italic text-center">Loading device state...</div>
+        </div>
+      `;
     } else if (route === "/") {
       content = html`<${HomeView} patternNames=${patternNames} />`;
     } else if (route === "/led") {
@@ -1048,10 +1154,16 @@
     }
 
     return html`
-      <div class="app-shell">
-        <${Header} route=${route} onHome=${goHome} />
-        ${bootError ? html`<div class="status bad">${bootError}</div>` : null}
-        ${content}
+      <div class="container py-4 py-sm-5">
+        <div class="row justify-content-center">
+          <div class="col-12 col-lg-8 col-xl-7">
+            <div class="d-grid gap-3">
+              <${Header} route=${route} onHome=${goHome} />
+              ${bootError ? html`<div class="alert alert-danger mb-0">${bootError}</div>` : null}
+              ${content}
+            </div>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -1060,7 +1172,7 @@
   if (!root) {
     return;
   }
-  root.className = "";
+  root.className = "min-vh-100";
   root.textContent = "";
   render(html`<${App} />`, root);
   window.__pico_app_started = true;

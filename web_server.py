@@ -3,6 +3,7 @@ import select
 import socket
 from utime import ticks_diff, ticks_ms
 
+from ble_manager import ble_manager
 from led_patterns import PATTERN_NAMES
 from morse import enqueue as morse_send, is_playing as morse_playing
 from notes import add_note, delete_note, edit_note, load_notes
@@ -46,6 +47,7 @@ _REDIRECT_HTML = """<!DOCTYPE html><html><head>
 
 _STATIC_APP_JS = "web_app.js"
 _LEGACY_ROUTES = {
+    "/ble": "/ble",
     "/led": "/led",
     "/touch": "/touch",
     "/notes": "/notes",
@@ -293,6 +295,29 @@ def handle_client(s, led_ctrl):
 
         elif path == "/api/sysinfo":
             _send(cl, "application/json", json.dumps(get_info()))
+
+        elif path == "/api/ble":
+            _send(cl, "application/json", json.dumps(ble_manager.get_state(include_scan=True)))
+
+        elif path.startswith("/api/ble/advertise") and "POST" in request:
+            active = False
+            try:
+                qs = path.split("?", 1)[1]
+                params = dict(p.split("=") for p in qs.split("&") if "=" in p)
+                active = params.get("active", "0") in ("1", "true", "on")
+            except Exception:
+                pass
+            _send(cl, "application/json", json.dumps(ble_manager.set_advertising(active)))
+
+        elif path == "/api/ble/config" and "POST" in request:
+            body = _read_body(cl, request).replace("\r\n", "\n")
+            parts = body.split("\n", 1)
+            name = parts[0] if parts else ""
+            status_text = parts[1] if len(parts) > 1 else ""
+            _send(cl, "application/json", json.dumps(ble_manager.configure(name, status_text)))
+
+        elif path == "/api/ble/scan/start" and "POST" in request:
+            _send(cl, "application/json", json.dumps(ble_manager.start_scan()))
 
         elif path.startswith("/api/morse") and "POST" in request:
             wpm = 12

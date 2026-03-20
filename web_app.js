@@ -12,6 +12,7 @@
 
   var ROUTE_TITLES = {
     "/": "PicoOne",
+    "/ble": "Bluetooth LE",
     "/led": "LED Control",
     "/touch": "Touch Pad",
     "/notes": "Notes",
@@ -23,6 +24,7 @@
 
   var ROUTE_SUBTITLES = {
     "/": "pico.local",
+    "/ble": "Advertise a BLE UART peripheral and scan nearby devices.",
     "/led": "Switch the onboard LED pattern running on the Pico.",
     "/touch": "Press and hold the pad to light the onboard LED.",
     "/notes": "Keep quick notes on the device.",
@@ -141,11 +143,12 @@
   function HomeView(props) {
     var cards = [
       { route: "/led", title: "LED Control", desc: props.patternNames.length + " patterns" },
+      { route: "/sysinfo", title: "System Info", desc: "Live stats" },
       { route: "/touch", title: "Touch Pad", desc: "Hold to light" },
       { route: "/notes", title: "Notes", desc: "Quick notes" },
-      { route: "/sysinfo", title: "System Info", desc: "Live stats" },
       { route: "/morse", title: "Morse Code", desc: "Blink text" },
       { route: "/wifi", title: "WiFi", desc: "Manage networks" },
+      { route: "/ble", title: "Bluetooth LE", desc: "Advertise + scan" },
     ];
     return html`
       <div class="row row-cols-1 row-cols-sm-2 g-3">
@@ -728,6 +731,181 @@
     `;
   }
 
+  function BleView(props) {
+    if (!props.info) {
+      if (props.requestError) {
+        return html`<div class="alert alert-danger mb-0">${props.requestError}</div>`;
+      }
+      return html`
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4 text-body-secondary fst-italic text-center">Loading Bluetooth LE state...</div>
+        </div>
+      `;
+    }
+    if (!props.info.supported) {
+      return html`
+        <div class="alert alert-warning mb-0">
+          ${props.info.error || "Bluetooth LE is unavailable in this firmware build."}
+        </div>
+      `;
+    }
+    var rows = [
+      ["Device Name", props.info.name || "PicoOne"],
+      ["MAC", props.info.address || "Unavailable"],
+      [
+        "Peripheral",
+        props.info.advertising
+          ? "Advertising"
+          : props.info.connected_count
+          ? "Connected"
+          : props.info.advertise_requested
+          ? "Idle"
+          : "Off",
+      ],
+      ["Connected Centrals", String(props.info.connected_count || 0)],
+      ["Last RX", props.info.last_rx_text || "Nothing received yet"],
+    ];
+    return html`
+      <div class="d-grid gap-3">
+        ${props.requestError ? html`<div class="alert alert-danger mb-0">${props.requestError}</div>` : null}
+        <${InfoRows} rows=${rows} />
+        ${props.info.error ? html`<div class="alert alert-warning mb-0">${props.info.error}</div>` : null}
+        ${props.message ? html`<div class="alert alert-secondary mb-0">${props.message}</div>` : null}
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <h2 class="h5 mb-3">Peripheral Controls</h2>
+            <div class="d-grid gap-3">
+              <input
+                class="form-control"
+                type="text"
+                maxLength="20"
+                placeholder="BLE device name"
+                value=${props.name}
+                onInput=${function (event) {
+                  props.onName(event.currentTarget.value);
+                }}
+              />
+              <textarea
+                class="form-control"
+                rows="3"
+                maxLength="120"
+                placeholder="Status text exposed over BLE TX"
+                value=${props.statusText}
+                onInput=${function (event) {
+                  props.onStatus(event.currentTarget.value);
+                }}
+              ></textarea>
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-primary" type="button" disabled=${props.busy} onClick=${props.onSave}>
+                  Save BLE Settings
+                </button>
+                <button class="btn btn-outline-primary" type="button" disabled=${props.busy} onClick=${props.onToggleAdvertising}>
+                  ${props.info.advertise_requested ? "Stop Advertising" : "Start Advertising"}
+                </button>
+                <button
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  disabled=${props.busy || props.info.scan_active}
+                  onClick=${props.onScan}
+                >
+                  ${props.info.scan_active ? "Scanning..." : "Scan Nearby"}
+                </button>
+                <button class="btn btn-outline-secondary" type="button" disabled=${props.busy} onClick=${props.onRefresh}>
+                  Refresh
+                </button>
+              </div>
+              <div class="form-text">
+                Connect with a BLE client such as LightBlue or nRF Connect. PicoOne exposes a Nordic UART Service-style
+                peripheral so TX can be read/notified and RX can be written.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <h2 class="h5 mb-3">BLE Service</h2>
+            <${InfoRows}
+              rows=${[
+                ["Service UUID", props.info.service_uuid],
+                ["TX UUID", props.info.tx_uuid],
+                ["RX UUID", props.info.rx_uuid],
+              ]}
+            />
+          </div>
+        </div>
+        ${props.info.connections && props.info.connections.length
+          ? html`
+              <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                  <h2 class="h5 mb-3">Connected Centrals</h2>
+                  <div class="d-grid gap-2">
+                    ${props.info.connections.map(function (connection) {
+                      return html`
+                        <div key=${connection.conn_handle} class="card bg-body-tertiary border-secondary-subtle">
+                          <div class="card-body py-3">
+                            <div class="fw-semibold">${connection.address}</div>
+                            <div class="small text-body-secondary mt-1">Handle ${connection.conn_handle}</div>
+                          </div>
+                        </div>
+                      `;
+                    })}
+                  </div>
+                </div>
+              </div>
+            `
+          : null}
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+              <h2 class="h5 mb-0">Nearby Devices</h2>
+              ${props.info.scan_active ? html`<span class="badge rounded-pill text-bg-secondary">Scanning</span>` : null}
+            </div>
+            ${props.info.scan_results && props.info.scan_results.length
+              ? html`
+                  <div class="d-grid gap-3">
+                    ${props.info.scan_results.map(function (device, index) {
+                      return html`
+                        <div key=${device.address + ":" + index} class="card bg-body-tertiary border-secondary-subtle">
+                          <div class="card-body py-3">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+                              <div>
+                                <div class="fw-semibold">${device.name || "Unnamed device"}</div>
+                                <div class="small text-body-secondary mt-1">${device.address}</div>
+                              </div>
+                              <div class="d-flex flex-wrap gap-2">
+                                <span class="badge rounded-pill text-bg-secondary">${device.rssi} dBm</span>
+                                <span
+                                  class=${"badge rounded-pill " + (device.connectable ? "text-bg-success" : "text-bg-secondary")}
+                                >
+                                  ${device.connectable ? "Connectable" : "Observer only"}
+                                </span>
+                                <span class="badge rounded-pill text-bg-dark">${device.adv_type}</span>
+                              </div>
+                            </div>
+                            ${device.services && device.services.length
+                              ? html`
+                                  <div class="small text-body-secondary mt-3">
+                                    Services: ${device.services.join(", ")}
+                                  </div>
+                                `
+                              : null}
+                          </div>
+                        </div>
+                      `;
+                    })}
+                  </div>
+                `
+              : html`
+                  <div class="text-body-secondary fst-italic">
+                    ${props.info.scan_active ? "Scanning nearby BLE devices..." : "No BLE scan results yet."}
+                  </div>
+                `}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function App() {
     var initial = normalizeBootstrap(window.__PICO_BOOTSTRAP__);
     var [route, setRoute] = useState(currentRoute());
@@ -757,6 +935,14 @@
     var [scanNetworks, setScanNetworks] = useState([]);
     var [scanOpen, setScanOpen] = useState({});
     var [scanPasswords, setScanPasswords] = useState({});
+    var [bleInfo, setBleInfo] = useState(null);
+    var [bleRequestError, setBleRequestError] = useState("");
+    var [bleMessage, setBleMessage] = useState("");
+    var [bleBusy, setBleBusy] = useState(false);
+    var [bleName, setBleName] = useState("");
+    var [bleStatusText, setBleStatusText] = useState("");
+    var bleNameDirtyRef = useRef(false);
+    var bleStatusDirtyRef = useRef(false);
 
     function applyBootstrap(data) {
       var next = normalizeBootstrap(data);
@@ -803,6 +989,32 @@
         })
         .catch(function () {
           setSysinfoError("Unable to read system info right now.");
+        });
+    }
+
+    function applyBleInfo(data) {
+      var next = data || null;
+      setBleInfo(next);
+      setBleRequestError("");
+      if (!next) {
+        return next;
+      }
+      if (!bleNameDirtyRef.current) {
+        setBleName(next.name || "");
+      }
+      if (!bleStatusDirtyRef.current) {
+        setBleStatusText(next.status_text || "");
+      }
+      return next;
+    }
+
+    function refreshBle() {
+      return apiJSON("/api/ble")
+        .then(function (data) {
+          return applyBleInfo(data);
+        })
+        .catch(function () {
+          setBleRequestError("Unable to read Bluetooth LE state right now.");
         });
     }
 
@@ -869,6 +1081,17 @@
       }
       refreshWifiCurrent();
       scanWifi();
+    }, [route]);
+
+    useEffect(function () {
+      if (route !== "/ble") {
+        return;
+      }
+      refreshBle();
+      var timer = setInterval(refreshBle, 2000);
+      return function () {
+        clearInterval(timer);
+      };
     }, [route]);
 
     function selectLed(mode) {
@@ -1075,6 +1298,86 @@
       connectWifi(network.ssid, scanPasswords[index] || "");
     }
 
+    function changeBleName(value) {
+      setBleName(value);
+      bleNameDirtyRef.current = true;
+    }
+
+    function changeBleStatusText(value) {
+      setBleStatusText(value);
+      bleStatusDirtyRef.current = true;
+    }
+
+    function saveBleConfig() {
+      var name = bleName.trim();
+      if (!name || bleBusy) {
+        if (!name) {
+          setBleMessage("BLE device name is required.");
+        }
+        return;
+      }
+      setBleBusy(true);
+      setBleMessage("Saving BLE settings...");
+      postPlain("/api/ble/config", name + "\n" + bleStatusText)
+        .then(function (data) {
+          bleNameDirtyRef.current = false;
+          bleStatusDirtyRef.current = false;
+          applyBleInfo(data);
+          setBleMessage("BLE settings saved.");
+        })
+        .catch(function () {
+          setBleMessage("Saving BLE settings failed.");
+        })
+        .then(function () {
+          setBleBusy(false);
+        });
+    }
+
+    function toggleBleAdvertising() {
+      var active = !(bleInfo && bleInfo.advertise_requested);
+      if (bleBusy) {
+        return;
+      }
+      setBleBusy(true);
+      setBleMessage(active ? "Starting BLE advertising..." : "Stopping BLE advertising...");
+      postPlain("/api/ble/advertise?active=" + (active ? 1 : 0), "")
+        .then(function (data) {
+          applyBleInfo(data);
+          setBleMessage(active ? "BLE advertising enabled." : "BLE advertising disabled.");
+        })
+        .catch(function () {
+          setBleMessage("Updating BLE advertising failed.");
+        })
+        .then(function () {
+          setBleBusy(false);
+        });
+    }
+
+    function scanBle() {
+      if (bleBusy || (bleInfo && bleInfo.scan_active)) {
+        return;
+      }
+      setBleBusy(true);
+      setBleMessage("Scanning nearby BLE devices...");
+      postPlain("/api/ble/scan/start", "")
+        .then(function (data) {
+          applyBleInfo((data && data.state) || data);
+          if (data && data.busy) {
+            setBleMessage("A BLE scan is already running.");
+          } else if (data && data.ok) {
+            setBleMessage("Scanning nearby BLE devices...");
+          } else {
+            setBleMessage("BLE scan could not be started.");
+          }
+        })
+        .catch(function () {
+          setBleMessage("Starting BLE scan failed.");
+        })
+        .then(function () {
+          setBleBusy(false);
+        });
+    }
+
     var content = null;
 
     if (!ready) {
@@ -1087,6 +1390,23 @@
       content = html`<${HomeView} patternNames=${patternNames} />`;
     } else if (route === "/led") {
       content = html`<${LedView} patternNames=${patternNames} ledMode=${ledMode} onPick=${selectLed} />`;
+    } else if (route === "/ble") {
+      content = html`
+        <${BleView}
+          info=${bleInfo}
+          requestError=${bleRequestError}
+          message=${bleMessage}
+          busy=${bleBusy}
+          name=${bleName}
+          statusText=${bleStatusText}
+          onName=${changeBleName}
+          onStatus=${changeBleStatusText}
+          onSave=${saveBleConfig}
+          onToggleAdvertising=${toggleBleAdvertising}
+          onScan=${scanBle}
+          onRefresh=${refreshBle}
+        />
+      `;
     } else if (route === "/touch") {
       content = html`<${TouchPadView} active=${touchActive} onMode=${setTouchMode} onPress=${setTouchPressed} />`;
     } else if (route === "/notes") {

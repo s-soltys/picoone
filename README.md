@@ -1,5 +1,17 @@
 # PicoOne
 
+## Bluetooth LE
+
+- The BLE view lives at `/#/ble`.
+- PicoOne can advertise itself as a Bluetooth Low Energy peripheral with a configurable device name and status text.
+- The BLE peripheral exposes a Nordic UART Service-style GATT layout:
+- Service UUID: `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`
+- TX characteristic: `6E400003-B5A3-F393-E0A9-E50E24DCCA9E` (read + notify)
+- RX characteristic: `6E400002-B5A3-F393-E0A9-E50E24DCCA9E` (write)
+- The BLE page also scans for nearby devices and lists their name, address, signal strength, and advertised services.
+- BLE name and status text are persisted in `ble_config.json`.
+- Use a BLE client such as LightBlue or nRF Connect to verify advertising, subscribe to TX notifications, or write to RX.
+
 ## Wi-Fi
 
 - The web UI is advertised as `http://pico.local/` after the Pico joins your network.

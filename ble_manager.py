@@ -27,6 +27,9 @@ MAX_NAME_LEN = 20
 MAX_STATUS_LEN = 120
 MAX_SCAN_RESULTS = 24
 ADV_INTERVAL_US = 250000
+SCAN_DURATION_MS = 5000
+SCAN_INTERVAL_US = 30000
+SCAN_WINDOW_US = 30000
 
 _IRQ_CENTRAL_CONNECT = const(1)
 _IRQ_CENTRAL_DISCONNECT = const(2)
@@ -189,6 +192,7 @@ class BLEManager:
         self._scan_active = False
         self._scan_results = []
         self._scan_index = {}
+        self._resume_advertising_after_scan = False
         self._connections = {}
         self._last_error = "" if bluetooth is not None else "Bluetooth LE is unavailable in this MicroPython build."
 
@@ -201,7 +205,8 @@ class BLEManager:
                 self._ble.active(True)
                 self._ble.irq(self._irq)
                 try:
-                    self._ble.config(rxbuf=512)
+                    # Scanning can produce a burst of events; keep a larger buffer.
+                    self._ble.config(rxbuf=2048)
                 except Exception:
                     pass
                 try:
@@ -216,21 +221,9 @@ class BLEManager:
                     except Exception:
                         pass
                 self._write_status_value(self._status_text, notify=False)
-            else:
-                try:
-                    if not self._ble.active():
-                        self._ble.active(True)
-                except Exception:
-                    try:
-                        self._ble.active(True)
-                    except Exception:
-                        pass
-                try:
-                    self._ble.config(gap_name=self._name)
-                except Exception:
-                    pass
             self._refresh_address()
-            self._last_error = ""
+            if not self._last_error.startswith("BLE scan failed:"):
+                self._last_error = ""
             return True
         except Exception as exc:
             self._last_error = "Bluetooth init failed: %s" % exc
@@ -277,6 +270,11 @@ class BLEManager:
             self._record_scan_result(addr_type, addr, adv_type, rssi, adv_data)
         elif event == _IRQ_SCAN_DONE:
             self._scan_active = False
+            if self._resume_advertising_after_scan and not self._connections:
+                self._resume_advertising_after_scan = False
+                self._start_advertising()
+            else:
+                self._resume_advertising_after_scan = False
 
     def _record_scan_result(self, addr_type, addr, adv_type, rssi, adv_data):
         address = _format_mac(addr)
@@ -379,7 +377,7 @@ class BLEManager:
             self._advertising = False
         return self.get_state(include_scan=True)
 
-    def start_scan(self, duration_ms=4000):
+    def start_scan(self, duration_ms=SCAN_DURATION_MS):
         if not self._ensure_ready():
             return {"ok": False, "busy": False, "state": self.get_state(include_scan=True)}
         if self._scan_active:
@@ -388,11 +386,21 @@ class BLEManager:
         self._scan_index = {}
         self._scan_active = True
         self._last_error = ""
+        self._resume_advertising_after_scan = bool(self._advertise_requested and not self._connections)
         try:
-            self._ble.gap_scan(duration_ms, 30000, 30000, True)
+            if self._resume_advertising_after_scan:
+                try:
+                    self._ble.gap_advertise(None)
+                except Exception:
+                    pass
+                self._advertising = False
+            # Use a passive 100% duty-cycle scan to reduce radio contention
+            # while still surfacing nearby devices on Pico W class hardware.
+            self._ble.gap_scan(duration_ms or SCAN_DURATION_MS, SCAN_INTERVAL_US, SCAN_WINDOW_US, False)
             return {"ok": True, "busy": False, "state": self.get_state(include_scan=True)}
         except Exception as exc:
             self._scan_active = False
+            self._resume_advertising_after_scan = False
             self._last_error = "BLE scan failed: %s" % exc
             return {"ok": False, "busy": False, "state": self.get_state(include_scan=True)}
 

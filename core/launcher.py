@@ -17,6 +17,7 @@ from core.ui import (
     draw_menu_dropdown,
     draw_desktop_background,
     draw_desktop_icon,
+    draw_footer_actions,
     draw_mouse_pointer,
     draw_window_shell,
     fit_text,
@@ -240,10 +241,7 @@ class Launcher:
             status_label = "Desktop"
             status_detail = "ready"
 
-        self.lcd.fill_rect(0, SCREEN_H - 14, SCREEN_W, 14, WHITE)
-        self.lcd.hline(0, SCREEN_H - 14, SCREEN_W, BLACK)
-        self.lcd.text(fit_text(status_label, WINDOW_TEXT_CHARS), 4, SCREEN_H - 11, BLACK)
-        self.lcd.text(fit_text(status_detail, 10), SCREEN_W - 84, SCREEN_H - 11, GRAY)
+        draw_footer_actions(self.lcd, fit_text(status_label, WINDOW_TEXT_CHARS), fit_text(status_detail, 10), BLACK)
         draw_mouse_pointer(self.lcd, self.cursor_x, self.cursor_y)
 
     def step_home(self):

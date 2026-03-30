@@ -1,6 +1,6 @@
 # Pico Launcher
 
-Early Macintosh-style desktop launcher for Raspberry Pi Pico 2 W with the Waveshare Pico-LCD-1.3 display.
+Colorful Windows 95-inspired desktop launcher for Raspberry Pi Pico 2 W with the Waveshare Pico-LCD-1.3 display.
 
 Hardware reference:
 - https://www.waveshare.com/wiki/Pico-LCD-1.3
@@ -26,7 +26,7 @@ Included apps:
 - `Paint`: simple pixel painter
 
 Desktop shell notes:
-- the shell now leans harder into a tiny Macintosh-style desktop with a top menu bar and denser icon layout
+- the shell now leans into a tiny Windows 95-style desktop with a teal background, beveled chrome, and blue title bars
 - apps are shown as compact desktop icons in a `4x4` grid instead of launcher tiles
 - the D-pad drives a mouse pointer on the desktop, including the top menu bar
 - Wi-Fi now lives under the `Wi-Fi` dropdown in the top bar instead of as a desktop icon

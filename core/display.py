@@ -7,6 +7,12 @@ except ImportError:
 SCREEN_W = 240
 SCREEN_H = 240
 
+
+def rgb565(r, g, b):
+    value = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+    return ((value & 0xFF) << 8) | (value >> 8)
+
+
 # colors are BGR565 byte-swapped so raw framebuf bytes display correctly
 RED = 0x00F8
 GREEN = 0xE007
@@ -34,6 +40,13 @@ OLIVE = 0xE063
 MAROON = 0x0060
 COPPER = 0xA0CA
 SAND = 0x4BCD
+SILVER = rgb565(192, 192, 192)
+LTGRAY = rgb565(223, 223, 223)
+DARKGRAY = rgb565(96, 96, 96)
+NAVY = rgb565(0, 0, 128)
+SKY = rgb565(16, 132, 208)
+AQUA = rgb565(0, 128, 128)
+CREAM = rgb565(255, 255, 225)
 
 
 def _resolve_driver_class():

@@ -1,11 +1,14 @@
 from core.display import BLACK, WHITE, GRAY, AMBER
 from core.controls import A_LABEL, B_LABEL
 from core.ui import (
+    LIST_ROW_H,
     WINDOW_CONTENT_X,
     WINDOW_CONTENT_Y,
     WINDOW_CONTENT_W,
     WINDOW_CONTENT_BOTTOM,
     WINDOW_TEXT_CHARS,
+    draw_field,
+    draw_list_row,
     draw_window_shell,
     draw_window_footer_actions,
     fit_text,
@@ -22,7 +25,7 @@ class GamesFolderApp:
         self.games = games
         self.selected = 0
         self.scroll = 0
-        self.rows = max(1, (WINDOW_CONTENT_BOTTOM - (WINDOW_CONTENT_Y + 22)) // 16)
+        self.rows = max(1, (WINDOW_CONTENT_BOTTOM - (WINDOW_CONTENT_Y + 44)) // LIST_ROW_H)
 
     def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
         ink = BLACK if monochrome else WHITE
@@ -60,22 +63,35 @@ class GamesFolderApp:
         if self.selected >= self.scroll + self.rows:
             self.scroll = self.selected - (self.rows - 1)
 
-        draw_window_shell(lcd, "Games", runtime.wifi.status())
-        lcd.text("Arcade folder", WINDOW_CONTENT_X, WINDOW_CONTENT_Y, BLACK)
-        lcd.text(fit_text(str(len(self.games)) + " titles", 8), WINDOW_CONTENT_X + WINDOW_CONTENT_W - 64, WINDOW_CONTENT_Y, GRAY)
+        draw_window_shell(lcd, "Programs", runtime.wifi.status())
+        draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y, WINDOW_CONTENT_W, 16, "Arcade Games", AMBER)
+        lcd.text(fit_text(str(len(self.games)) + " titles", 10), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 24, GRAY)
 
-        y = WINDOW_CONTENT_Y + 20
+        y = WINDOW_CONTENT_Y + 34
         end = min(len(self.games), self.scroll + self.rows)
         for index in range(self.scroll, end):
             app = self.games[index]
-            selected = index == self.selected
-            if selected:
-                lcd.fill_rect(WINDOW_CONTENT_X - 2, y - 2, WINDOW_CONTENT_W + 2, 14, BLACK)
+            draw_list_row(
+                lcd,
+                WINDOW_CONTENT_X,
+                y,
+                WINDOW_CONTENT_W,
+                app.title,
+                index == self.selected,
+                lead=">",
+                detail="play",
+            )
+            y += LIST_ROW_H
 
-            app.draw_icon(lcd, WINDOW_CONTENT_X + 12, y + 4, selected, True)
-            text_color = WHITE if selected else BLACK
-            lcd.text(fit_text(app.title, WINDOW_TEXT_CHARS - 4), WINDOW_CONTENT_X + 28, y, text_color)
-            y += 16
+        draw_field(
+            lcd,
+            WINDOW_CONTENT_X,
+            WINDOW_CONTENT_BOTTOM - 18,
+            WINDOW_CONTENT_W,
+            16,
+            fit_text("Selected: " + self.games[self.selected].title, WINDOW_TEXT_CHARS),
+            AMBER,
+        )
 
         draw_window_footer_actions(lcd, A_LABEL + " desk", B_LABEL + " open", BLACK)
         return None

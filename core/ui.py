@@ -8,9 +8,7 @@ from core.display import (
     GRAY,
     CYAN,
     YELLOW,
-    DKGRN,
     TEAL,
-    SLATE,
     RED,
     GREEN,
     BLUE,
@@ -37,21 +35,26 @@ TEXT_Y_HEADER = 5
 TEXT_Y_FOOTER = SCREEN_H - FOOTER_H + 5
 
 MENU_TITLE = "PicoOS"
-MENU_WIFI_LABEL = "Wi-Fi"
-MENU_BAR_H = 14
-DESKTOP_TOP = MENU_BAR_H + 1
-MENU_DROPDOWN_ROW_H = 14
 
-WINDOW_X = 2
-WINDOW_Y = MENU_BAR_H + 3
+TASKBAR_H = 20
+TASKBAR_Y = SCREEN_H - TASKBAR_H
+TASKBAR_START_W = 50
+TASKBAR_TRAY_W = 68
+START_MENU_W = 152
+START_MENU_ROW_H = 16
+DESKTOP_TOP = 2
+DESKTOP_BOTTOM = TASKBAR_Y - 2
+
+WINDOW_X = 6
+WINDOW_Y = 6
 WINDOW_W = SCREEN_W - (WINDOW_X * 2)
-WINDOW_H = SCREEN_H - WINDOW_Y - 2
-WINDOW_TITLE_H = 12
-WINDOW_FOOTER_H = 14
+WINDOW_H = TASKBAR_Y - WINDOW_Y - 4
+WINDOW_TITLE_H = 14
+WINDOW_FOOTER_H = 16
 WINDOW_CONTENT_X = WINDOW_X + 6
-WINDOW_CONTENT_Y = WINDOW_Y + WINDOW_TITLE_H + 6
+WINDOW_CONTENT_Y = WINDOW_Y + WINDOW_TITLE_H + 8
 WINDOW_CONTENT_W = WINDOW_W - 12
-WINDOW_CONTENT_BOTTOM = WINDOW_Y + WINDOW_H - WINDOW_FOOTER_H - 4
+WINDOW_CONTENT_BOTTOM = WINDOW_Y + WINDOW_H - WINDOW_FOOTER_H - 5
 WINDOW_CONTENT_H = WINDOW_CONTENT_BOTTOM - WINDOW_CONTENT_Y
 WINDOW_FOOTER_Y = WINDOW_Y + WINDOW_H - WINDOW_FOOTER_H
 WINDOW_TEXT_CHARS = max(1, WINDOW_CONTENT_W // 8)
@@ -62,11 +65,13 @@ DESKTOP_BG = AQUA
 TITLE_BG = NAVY
 TITLE_HILITE = SKY
 SELECTION_BG = NAVY
+LIST_ROW_H = 14
 
 
 def fit_text(text, max_chars):
     if text is None:
         return ""
+    text = str(text)
     if len(text) <= max_chars:
         return text
     if max_chars <= 1:
@@ -86,44 +91,34 @@ def menu_clock_text():
     try:
         now = time.localtime()
     except Exception:
-        return MENU_TITLE
+        return "Pico"
 
     if not now or len(now) < 5:
-        return MENU_TITLE
+        return "Pico"
 
-    year = now[0]
-    if year < 2024:
-        return MENU_TITLE
+    if now[0] < 2024:
+        return "Pico"
     return "{:02d}:{:02d}".format(now[3], now[4])
 
 
-def menu_bar_regions(title=MENU_TITLE, clock_text=None):
-    title = fit_text(title, 8)
-    title_x = 22
-    title_w = len(title) * 8
-    wifi_w = 76
-    wifi_x = title_x + title_w + 14
-
+def taskbar_regions(task_label="", clock_text=None):
     if clock_text is None:
         clock_text = menu_clock_text()
     clock_text = fit_text(clock_text, 6)
-    clock_w = len(clock_text) * 8
-    clock_box_w = max(40, clock_w + 22)
-    clock_box_x = SCREEN_W - clock_box_w - 4
-    glyph_x = clock_box_x + 4
-    clock_x = glyph_x + 11
+
+    start_rect = (2, TASKBAR_Y + 2, TASKBAR_START_W, TASKBAR_H - 4)
+    tray_rect = (SCREEN_W - TASKBAR_TRAY_W - 2, TASKBAR_Y + 2, TASKBAR_TRAY_W, TASKBAR_H - 4)
+
+    task_x = start_rect[0] + start_rect[2] + 4
+    task_w = tray_rect[0] - task_x - 4
+    if task_w < 36:
+        task_w = 0
 
     return {
-        "title": title,
-        "title_x": title_x,
-        "wifi_x": wifi_x,
-        "wifi_w": wifi_w,
-        "wifi_status_x": wifi_x + 42,
-        "wifi_rect": (wifi_x - 4, 1, wifi_w, MENU_BAR_H - 2),
+        "start_rect": start_rect,
+        "task_rect": (task_x, TASKBAR_Y + 2, task_w, TASKBAR_H - 4),
+        "tray_rect": tray_rect,
         "clock_text": clock_text,
-        "clock_x": clock_x,
-        "glyph_x": glyph_x,
-        "clock_box": (clock_box_x, 1, clock_box_w, MENU_BAR_H - 2),
     }
 
 
@@ -201,6 +196,40 @@ def _status_accent(color):
     return color
 
 
+def _split_label_lines(text, max_chars):
+    text = str(text)
+    if len(text) <= max_chars:
+        return [text]
+
+    if " " in text:
+        words = text.split()
+        if len(words) == 2 and len(words[0]) <= max_chars and len(words[1]) <= max_chars:
+            return words
+
+        first = words[0]
+        second = " ".join(words[1:])
+        if len(first) <= max_chars and len(second) <= max_chars:
+            return [first, second]
+
+    return [fit_text(text, max_chars)]
+
+
+def _draw_window_controls(lcd, x, y):
+    button_w = 10
+    gap = 2
+    names = ("min", "max", "close")
+    for index, name in enumerate(names):
+        bx = x + (index * (button_w + gap))
+        _draw_bevel_box(lcd, bx, y, button_w, 10, PANEL_BG)
+        if name == "min":
+            lcd.hline(bx + 2, y + 7, 6, BLACK)
+        elif name == "max":
+            lcd.rect(bx + 2, y + 2, 6, 5, BLACK)
+        else:
+            lcd.line(bx + 2, y + 2, bx + 7, y + 7, BLACK)
+            lcd.line(bx + 7, y + 2, bx + 2, y + 7, BLACK)
+
+
 def draw_header(lcd, title, detail="", color=CYAN):
     max_title = max(1, (SCREEN_W // 8) - 8)
     title = fit_text(title, max_title)
@@ -234,42 +263,63 @@ def draw_footer_actions(lcd, left_text, right_text="", color=GRAY):
     _draw_status_field(lcd, 8 + left_w, field_y, right_w, field_h, right_text, accent)
 
 
-def draw_tile(lcd, x, y, w, h, title, selected, accent, icon_fn, monochrome=False):
-    if monochrome:
-        border = WHITE
-        fill = WHITE if selected else BLACK
-        text_color = BLACK if selected else WHITE
-        lcd.fill_rect(x, y, w, h, fill)
-        lcd.rect(x, y, w, h, border)
+def draw_button(lcd, x, y, w, h, label, pressed=False, fill=PANEL_BG, text_color=BLACK):
+    _draw_bevel_box(lcd, x, y, w, h, fill, pressed)
+    label = fit_text(label, max(1, (w - 6) // 8))
+    lcd.text(label, x + max(2, (w - (len(label) * 8)) // 2), y + max(0, (h - 8) // 2), text_color)
+
+
+def draw_field(lcd, x, y, w, h, text, accent=None, text_color=BLACK):
+    _draw_status_field(lcd, x, y, w, h, text, accent, text_color)
+
+
+def draw_list_row(lcd, x, y, w, label, selected=False, lead="", detail="", text_color=BLACK, detail_color=GRAY):
+    if selected:
+        lcd.fill_rect(x, y, w, LIST_ROW_H, SELECTION_BG)
+        text_color = WHITE
+        detail_color = WHITE
     else:
-        fill = PANEL_BG
-        text_color = WHITE if selected else BLACK
-        _draw_bevel_box(lcd, x, y, w, h, fill, selected)
-        if selected:
-            lcd.fill_rect(x + 3, y + 3, w - 6, 8, TITLE_BG)
-            lcd.fill_rect(x + 4, y + 4, 4, 6, accent)
+        lcd.fill_rect(x, y, w, LIST_ROW_H, WHITE)
 
-    icon_fn(lcd, x + (w // 2), y + max(20, h // 3), selected, monochrome)
+    lead_w = 0
+    if lead:
+        lcd.text(fit_text(lead, 2), x + 2, y + 3, text_color)
+        lead_w = 12
 
-    max_chars = max(4, (w // 8) - 2)
-    label = fit_text(title, max_chars)
-    label_x = x + max(3, (w - (len(label) * 8)) // 2)
-    label_y = y + h - 16
-    if not monochrome and selected:
-        lcd.fill_rect(label_x - 2, label_y - 1, (len(label) * 8) + 4, 11, SELECTION_BG)
-    lcd.text(label, label_x, label_y, text_color)
+    label_chars = max(1, ((w - lead_w - 8) // 8) - (len(detail) + 1 if detail else 0))
+    lcd.text(fit_text(label, label_chars), x + 2 + lead_w, y + 3, text_color)
+    if detail:
+        lcd.text(fit_text(detail, 8), right_x(detail, 4, w, x), y + 3, detail_color)
 
 
-def draw_empty_state(lcd, title, lines, accent=TEAL, footer=HOME_HINT):
-    lcd.fill(DESKTOP_BG)
-    draw_header(lcd, title, color=accent)
-    panel_h = min(CONTENT_H, max(54, (len(lines) * 18) + 18))
-    _draw_bevel_box(lcd, CONTENT_LEFT, CONTENT_TOP + 6, SCREEN_W - 8, panel_h, CREAM)
-    y = CONTENT_TOP + 18
+def draw_dialog(lcd, title, lines, buttons=None, selected_button=0, width=176):
+    buttons = buttons or []
+    width = min(width, SCREEN_W - 20)
+    line_count = max(1, len(lines))
+    content_h = max(44, line_count * 16)
+    button_h = 24 if buttons else 0
+    height = 22 + content_h + button_h + 10
+    x = (SCREEN_W - width) // 2
+    y = max(6, (TASKBAR_Y - height) // 2)
+
+    _draw_bevel_box(lcd, x, y, width, height, PANEL_BG)
+    _draw_title_band(lcd, x + 3, y + 2, width - 6, 12, title, logo=True)
+
+    text_y = y + 22
+    max_chars = max(1, (width - 18) // 8)
     for line in lines:
-        lcd.text(fit_text(line, 26), CONTENT_LEFT + 8, y, BLACK)
-        y += 18
-    draw_footer(lcd, footer)
+        lcd.text(fit_text(line, max_chars), x + 9, text_y, BLACK)
+        text_y += 16
+
+    if not buttons:
+        return
+
+    button_w = max(44, min(68, (width - 16 - (len(buttons) - 1) * 6) // len(buttons)))
+    row_w = (button_w * len(buttons)) + ((len(buttons) - 1) * 6)
+    bx = x + max(8, (width - row_w) // 2)
+    by = y + height - 28
+    for index, label in enumerate(buttons):
+        draw_button(lcd, bx + index * (button_w + 6), by, button_w, 18, label, index == selected_button)
 
 
 def _wifi_status_text(status):
@@ -309,47 +359,55 @@ def draw_wifi_glyph(lcd, x, y, status):
         lcd.hline(x, y + 1, 8, BLACK)
 
 
-def draw_menu_bar(lcd, title=MENU_TITLE, wifi_status=None, active_menu=None, clock_text=None):
-    _draw_bevel_box(lcd, 0, 0, SCREEN_W, MENU_BAR_H, PANEL_BG)
-    _draw_win_logo(lcd, 4, 3, 2)
+def draw_taskbar(lcd, wifi_status=None, active_task="", focus=None, start_open=False):
+    _draw_bevel_box(lcd, 0, TASKBAR_Y, SCREEN_W, TASKBAR_H, PANEL_BG)
+    regions = taskbar_regions(active_task)
 
-    regions = menu_bar_regions(title, clock_text)
-    title_w = (len(regions["title"]) * 8) + 8
-    _draw_bevel_box(lcd, regions["title_x"] - 4, 1, title_w, MENU_BAR_H - 2, PANEL_BG)
-    lcd.text(regions["title"], regions["title_x"], 3, BLACK)
+    sx, sy, sw, sh = regions["start_rect"]
+    _draw_bevel_box(lcd, sx, sy, sw, sh, PANEL_BG, start_open or focus == "start")
+    _draw_win_logo(lcd, sx + 4, sy + 4, 2)
+    lcd.text("Start", sx + 14, sy + 5, BLACK)
 
-    wifi_x, wifi_y, wifi_w, wifi_h = regions["wifi_rect"]
-    _draw_bevel_box(lcd, wifi_x, wifi_y, wifi_w, wifi_h, PANEL_BG, active_menu == "wifi")
-    lcd.text(MENU_WIFI_LABEL, regions["wifi_x"], 3, BLACK)
+    if active_task:
+        tx, ty, tw, th = regions["task_rect"]
+        if tw > 0:
+            _draw_bevel_box(lcd, tx, ty, tw, th, PANEL_BG, True)
+            lcd.text(fit_text(active_task, max(1, (tw - 8) // 8)), tx + 4, ty + 5, BLACK)
 
-    status_text = _wifi_status_text(wifi_status)
-    if status_text != "OFF":
-        lcd.text(status_text, regions["wifi_status_x"], 3, BLACK)
+    tray_x, tray_y, tray_w, tray_h = regions["tray_rect"]
+    _draw_bevel_box(lcd, tray_x, tray_y, tray_w, tray_h, PANEL_FIELD, True)
+    if focus == "tray":
+        lcd.rect(tray_x + 2, tray_y + 2, tray_w - 4, tray_h - 4, SELECTION_BG)
+    draw_wifi_glyph(lcd, tray_x + 5, tray_y + 5, wifi_status)
+    clock_text = regions["clock_text"]
+    lcd.text(clock_text, right_x(clock_text, 5, tray_w, tray_x), tray_y + 5, BLACK)
 
-    _draw_bevel_box(lcd, *regions["clock_box"], PANEL_FIELD, True)
-    draw_wifi_glyph(lcd, regions["glyph_x"], 3, wifi_status)
-    lcd.text(regions["clock_text"], regions["clock_x"], 3, BLACK)
 
+def draw_start_menu(lcd, items, selected_index=0):
+    width = START_MENU_W
+    height = 24 + (len(items) * START_MENU_ROW_H) + 6
+    x = 2
+    y = TASKBAR_Y - height - 2
+    _draw_bevel_box(lcd, x, y, width, height, PANEL_BG)
+    lcd.fill_rect(x + 2, y + 2, 16, height - 4, TITLE_BG)
+    _draw_win_logo(lcd, x + 5, y + 6, 3)
+    lcd.text("PicoOS", x + 24, y + 6, BLACK)
 
-def draw_menu_dropdown(lcd, x, y, w, items, selected_index=None):
-    height = (len(items) * MENU_DROPDOWN_ROW_H) + 4
-    _draw_bevel_box(lcd, x, y, w, height, PANEL_BG)
-
-    for index in range(len(items)):
-        item = items[index]
-        row_y = y + 2 + (index * MENU_DROPDOWN_ROW_H)
-        enabled = item.get("enabled", True)
-        selected = enabled and index == selected_index
+    row_x = x + 20
+    row_w = width - 24
+    row_y = y + 22
+    for index, item in enumerate(items):
+        selected = index == selected_index
         if selected:
-            lcd.fill_rect(x + 2, row_y, w - 4, MENU_DROPDOWN_ROW_H, SELECTION_BG)
-
-        label = fit_text(item.get("label", ""), max(1, (w // 8) - 3))
-        detail = fit_text(item.get("detail", ""), 5)
-        label_color = WHITE if selected else (BLACK if enabled else GRAY)
-        detail_color = WHITE if selected else DARKGRAY
-        lcd.text(label, x + 4, row_y + 3, label_color)
+            lcd.fill_rect(row_x + 2, row_y, row_w - 4, START_MENU_ROW_H, SELECTION_BG)
+        label_color = WHITE if selected else BLACK
+        detail_color = WHITE if selected else GRAY
+        label = fit_text(item.get("label", ""), max(1, (row_w // 8) - 4))
+        detail = fit_text(item.get("detail", ""), 7)
+        lcd.text(label, row_x + 4, row_y + 4, label_color)
         if detail:
-            lcd.text(detail, right_x(detail, 4, w, x), row_y + 3, detail_color)
+            lcd.text(detail, right_x(detail, 4, row_w, row_x), row_y + 4, detail_color)
+        row_y += START_MENU_ROW_H
 
 
 def draw_desktop_background(lcd):
@@ -358,22 +416,56 @@ def draw_desktop_background(lcd):
 
 def draw_window_shell(lcd, title, wifi_status=None):
     draw_desktop_background(lcd)
-    draw_menu_bar(lcd, MENU_TITLE, wifi_status)
+    draw_taskbar(lcd, wifi_status, title)
+
     _draw_bevel_box(lcd, WINDOW_X, WINDOW_Y, WINDOW_W, WINDOW_H, PANEL_BG)
-    lcd.fill_rect(WINDOW_X + 3, WINDOW_Y + WINDOW_TITLE_H + 1, WINDOW_W - 6, WINDOW_H - WINDOW_TITLE_H - 4, WHITE)
-    _draw_title_band(lcd, WINDOW_X + 3, WINDOW_Y + 2, WINDOW_W - 6, WINDOW_TITLE_H - 3, fit_text(title, max(1, (WINDOW_W // 8) - 6)), logo=True)
+    lcd.fill_rect(
+        WINDOW_X + 3,
+        WINDOW_Y + WINDOW_TITLE_H + 1,
+        WINDOW_W - 6,
+        WINDOW_H - WINDOW_TITLE_H - 4,
+        WHITE,
+    )
+
+    title_w = WINDOW_W - 42
+    _draw_title_band(
+        lcd,
+        WINDOW_X + 3,
+        WINDOW_Y + 2,
+        title_w,
+        WINDOW_TITLE_H - 1,
+        fit_text(title, max(1, (title_w - 16) // 8)),
+        logo=True,
+    )
+    _draw_window_controls(lcd, WINDOW_X + WINDOW_W - 37, WINDOW_Y + 4)
     lcd.hline(WINDOW_X + 2, WINDOW_FOOTER_Y - 1, WINDOW_W - 4, GRAY)
 
 
 def draw_window_footer(lcd, text, color=BLACK):
     lcd.fill_rect(WINDOW_X + 2, WINDOW_FOOTER_Y, WINDOW_W - 4, WINDOW_FOOTER_H, PANEL_BG)
-    _draw_status_field(lcd, WINDOW_X + 4, WINDOW_FOOTER_Y + 2, WINDOW_W - 8, WINDOW_FOOTER_H - 4, text, _status_accent(color))
+    _draw_status_field(
+        lcd,
+        WINDOW_X + 4,
+        WINDOW_FOOTER_Y + 2,
+        WINDOW_W - 8,
+        WINDOW_FOOTER_H - 4,
+        text,
+        _status_accent(color),
+    )
 
 
 def draw_window_footer_actions(lcd, left_text, right_text="", color=BLACK):
     lcd.fill_rect(WINDOW_X + 2, WINDOW_FOOTER_Y, WINDOW_W - 4, WINDOW_FOOTER_H, PANEL_BG)
     if not right_text:
-        _draw_status_field(lcd, WINDOW_X + 4, WINDOW_FOOTER_Y + 2, WINDOW_W - 8, WINDOW_FOOTER_H - 4, left_text, _status_accent(color))
+        _draw_status_field(
+            lcd,
+            WINDOW_X + 4,
+            WINDOW_FOOTER_Y + 2,
+            WINDOW_W - 8,
+            WINDOW_FOOTER_H - 4,
+            left_text,
+            _status_accent(color),
+        )
         return
 
     field_y = WINDOW_FOOTER_Y + 2
@@ -394,23 +486,35 @@ def draw_window_empty_state(lcd, title, lines, wifi_status=None, footer=HOME_HIN
     draw_window_footer(lcd, footer)
 
 
+def draw_empty_state(lcd, title, lines, accent=TEAL, footer=HOME_HINT):
+    lcd.fill(DESKTOP_BG)
+    draw_header(lcd, title, color=accent)
+    panel_h = min(CONTENT_H, max(54, (len(lines) * 18) + 18))
+    _draw_bevel_box(lcd, CONTENT_LEFT, CONTENT_TOP + 6, SCREEN_W - 8, panel_h, CREAM)
+    y = CONTENT_TOP + 18
+    for line in lines:
+        lcd.text(fit_text(line, 26), CONTENT_LEFT + 8, y, BLACK)
+        y += 18
+    draw_footer(lcd, footer)
+
+
 def draw_desktop_icon(lcd, x, y, w, h, title, selected, icon_fn):
     cx = x + (w // 2)
-    cy = y + 12
+    cy = y + 14
     if selected:
-        _draw_bevel_box(lcd, cx - 16, y + 1, 32, 28, PANEL_BG)
+        _draw_bevel_box(lcd, cx - 18, y + 2, 36, 30, PANEL_BG)
 
     icon_fn(lcd, cx, cy, True, True)
 
-    label = fit_text(title, max(4, (w // 8) - 1))
-    label_w = len(label) * 8
-    label_x = x + max(0, (w - label_w) // 2)
-    label_y = y + h - 11
-    if selected:
-        lcd.fill_rect(label_x - 2, label_y - 1, label_w + 4, 11, SELECTION_BG)
-        lcd.text(label, label_x, label_y, WHITE)
-    else:
-        lcd.text(label, label_x, label_y, WHITE)
+    lines = _split_label_lines(title, max(4, (w // 8) - 1))
+    line_y = y + h - (19 if len(lines) > 1 else 11)
+    for line in lines:
+        label_w = len(line) * 8
+        label_x = x + max(0, (w - label_w) // 2)
+        if selected:
+            lcd.fill_rect(label_x - 2, line_y - 1, label_w + 4, 10, SELECTION_BG)
+        lcd.text(line, label_x, line_y, WHITE)
+        line_y += 9
 
 
 def draw_mouse_pointer(lcd, x, y):

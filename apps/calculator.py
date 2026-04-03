@@ -5,6 +5,8 @@ from core.ui import (
     WINDOW_CONTENT_Y,
     WINDOW_CONTENT_W,
     WINDOW_TEXT_CHARS,
+    draw_button,
+    draw_field,
     draw_window_shell,
     draw_window_footer_actions,
     fit_text,
@@ -156,12 +158,12 @@ class CalculatorApp:
         draw_window_shell(lcd, "Calculator", runtime.wifi.status())
 
         display_expr = self.expression or "0"
-        lcd.text(fit_text(display_expr, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 2, BLACK)
+        draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y, WINDOW_CONTENT_W, 18, display_expr, CYAN)
         if self.error:
-            lcd.text(fit_text(self.error, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 20, ORANGE)
+            lcd.text(fit_text(self.error, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 26, ORANGE)
         else:
             result = self.result if self.result else B_LABEL + " eval"
-            lcd.text(fit_text(result, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 20, CYAN)
+            lcd.text(fit_text(result, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 26, CYAN)
 
         for row in range(4):
             for col in range(4):
@@ -169,9 +171,7 @@ class CalculatorApp:
                 y = key_y0 + (row * (key_h + 6))
                 key = KEYPAD[row][col]
                 selected = row == self.cursor_y and col == self.cursor_x
-                lcd.fill_rect(x, y, key_w, key_h, BLACK if selected else WHITE)
-                lcd.rect(x, y, key_w, key_h, BLACK)
-                lcd.text(key, x + max(2, (key_w - 8) // 2), y + 10, WHITE if selected else BLACK)
+                draw_button(lcd, x, y, key_w, key_h, key, selected, WHITE)
 
         draw_window_footer_actions(lcd, A_LABEL + " del", B_LABEL + " key", BLACK)
         return None

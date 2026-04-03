@@ -91,6 +91,7 @@ class Launcher:
             {"label": "Calculator", "detail": "calc", "kind": "app", "app": self._find_app("calculator")},
             {"label": "Weather", "detail": "wx", "kind": "app", "app": self._find_app("weather")},
             {"label": "Browser", "detail": "web", "kind": "app", "app": self._find_app("browser")},
+            {"label": "Server", "detail": "http", "kind": "app", "app": self._find_app("server")},
             {"label": "Wi-Fi", "detail": "net", "kind": "wifi"},
             {"label": "Paint", "detail": "art", "kind": "app", "app": self._find_app("paint")},
             {"label": "Galaxy", "detail": "map", "kind": "app", "app": self._find_app("galaxy")},
@@ -105,6 +106,7 @@ class Launcher:
             {"label": "galaxy", "kind": "app", "app": self._find_app("galaxy")},
             {"label": "games", "kind": "app", "app": self._find_app("games-folder")},
             {"label": "paint", "kind": "app", "app": self._find_app("paint")},
+            {"label": "server", "kind": "app", "app": self._find_app("server")},
             {"label": "status", "kind": "app", "app": self._find_app("device-status")},
             {"label": "weather", "kind": "app", "app": self._find_app("weather")},
             {"label": "wifi", "kind": "wifi"},
@@ -372,6 +374,8 @@ class Launcher:
             if self.active_app is None:
                 self.draw_home()
             return
+        if self.active_app is not None and hasattr(self.active_app, "background_step"):
+            self.active_app.background_step(self)
         self._draw_help()
 
     def show_splash(self):

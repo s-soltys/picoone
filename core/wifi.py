@@ -74,6 +74,8 @@ class WiFiHelper:
         self._auto_candidates = []
         self._auto_deadline_ms = None
         self._auto_target = ""
+        self._hostname = ""
+        self._hostname_method = ""
 
     def supported(self):
         return network is not None
@@ -363,3 +365,43 @@ class WiFiHelper:
             return True
         except Exception:
             return False
+
+    def apply_hostname(self, hostname):
+        wlan = self._wlan_if()
+        if wlan is None:
+            return {"ok": False, "error": "network module unavailable", "hostname": "", "method": ""}
+
+        base = str(hostname or "").strip().lower()
+        if not base:
+            return {"ok": False, "error": "hostname required", "hostname": "", "method": ""}
+        if "." in base:
+            base = base.split(".", 1)[0]
+
+        attempts = []
+        if hasattr(wlan, "config"):
+            attempts.append(("wlan.config(hostname)", lambda: wlan.config(hostname=base)))
+            attempts.append(("wlan.config(dhcp_hostname)", lambda: wlan.config(dhcp_hostname=base)))
+        if network is not None and hasattr(network, "hostname"):
+            attempts.append(("network.hostname()", lambda: network.hostname(base)))
+
+        last_error = "hostname unsupported"
+        for method, fn in attempts:
+            try:
+                fn()
+                self._hostname = base
+                self._hostname_method = method
+                return {
+                    "ok": True,
+                    "error": "",
+                    "hostname": base,
+                    "method": method,
+                }
+            except Exception as exc:
+                last_error = str(exc)
+
+        return {
+            "ok": False,
+            "error": last_error,
+            "hostname": base,
+            "method": "",
+        }

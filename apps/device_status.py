@@ -1,11 +1,11 @@
 import gc
 import sys
-import time
 
-from machine import ADC, freq
+from machine import freq
 
 from core.display import BLACK, GRAY, GREEN, ORANGE, RED, BLUE, CYAN
 from core.controls import A_LABEL, B_LABEL, HOME_HINT, X_LABEL
+from core.temperature import CoreTemperatureSensor, ticks_diff, ticks_ms
 from core.ui import (
     WINDOW_CONTENT_X,
     WINDOW_CONTENT_Y,
@@ -17,23 +17,7 @@ from core.ui import (
     fit_text,
 )
 
-
-CONVERSION_FACTOR = 3.3 / 65535
-TEMP_V27 = 0.706
-TEMP_SLOPE = 0.001721
 SAMPLE_MS = 1000
-
-
-def _ticks_ms():
-    if hasattr(time, "ticks_ms"):
-        return time.ticks_ms()
-    return int(time.time() * 1000)
-
-
-def _ticks_diff(newer, older):
-    if hasattr(time, "ticks_diff"):
-        return time.ticks_diff(newer, older)
-    return newer - older
 
 
 def _format_uptime(total_seconds):
@@ -50,17 +34,12 @@ class DeviceStatusApp:
     launch_mode = "window"
 
     def __init__(self):
-        self.sensor = None
-        self.sensor_checked = False
-        self.temp_error = ""
-        self.last_sample_ms = -SAMPLE_MS
-        self.last_temp_c = None
-        self.last_voltage = None
+        self.sensor = CoreTemperatureSensor(SAMPLE_MS)
         self.show_fahrenheit = False
         self.show_extra = False
         self.last_mem_text = "unknown"
         self.last_mem_sample_ms = -SAMPLE_MS
-        self.boot_ms = _ticks_ms()
+        self.boot_ms = ticks_ms()
 
     def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
         frame = BLACK if monochrome and selected else GREEN
@@ -85,61 +64,17 @@ class DeviceStatusApp:
             HOME_HINT,
         ]
 
-    def _init_sensor(self):
-        if self.sensor_checked:
-            return
-
-        self.sensor_checked = True
-        candidates = []
-        core_temp = getattr(ADC, "CORE_TEMP", None)
-        if core_temp is not None:
-            candidates.append(core_temp)
-        candidates.append(4)
-
-        last_error = ""
-        for channel in candidates:
-            try:
-                sensor = ADC(channel)
-                sensor.read_u16()
-                self.sensor = sensor
-                self.temp_error = ""
-                return
-            except Exception as exc:
-                last_error = str(exc)
-
-        if last_error:
-            self.temp_error = last_error
-        else:
-            self.temp_error = "sensor unavailable"
-
     def _sample(self, force=False):
-        now = _ticks_ms()
-        if not force and _ticks_diff(now, self.last_sample_ms) < SAMPLE_MS:
-            return
-
-        self.last_sample_ms = now
-        self._init_sensor()
-        if self.sensor is None:
-            self.last_temp_c = None
-            self.last_voltage = None
-            return
-
-        total = 0
-        for _ in range(8):
-            total += self.sensor.read_u16()
-        reading = total / 8
-        voltage = reading * CONVERSION_FACTOR
-        self.last_voltage = voltage
-        self.last_temp_c = 27 - (voltage - TEMP_V27) / TEMP_SLOPE
+        self.sensor.sample(force)
 
     def _temp_text(self):
-        if self.last_temp_c is None:
+        if self.sensor.last_temp_c is None:
             return "Unavailable"
 
         if self.show_fahrenheit:
-            value = (self.last_temp_c * 9 / 5) + 32
+            value = (self.sensor.last_temp_c * 9 / 5) + 32
             return "{:.1f} F".format(value)
-        return "{:.1f} C".format(self.last_temp_c)
+        return "{:.1f} C".format(self.sensor.last_temp_c)
 
     def _wifi_text(self, runtime):
         status = runtime.wifi.status()
@@ -163,8 +98,8 @@ class DeviceStatusApp:
         return self.last_mem_text
 
     def _sample_mem(self, force=False):
-        now = _ticks_ms()
-        if not force and _ticks_diff(now, self.last_mem_sample_ms) < SAMPLE_MS:
+        now = ticks_ms()
+        if not force and ticks_diff(now, self.last_mem_sample_ms) < SAMPLE_MS:
             return
         self.last_mem_sample_ms = now
         try:
@@ -196,25 +131,25 @@ class DeviceStatusApp:
         draw_window_shell(lcd, "Device Status", runtime.wifi.status())
 
         draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y, WINDOW_CONTENT_W, 16, "Core temperature", ORANGE)
-        temp_color = RED if self.last_temp_c is not None and self.last_temp_c >= 60 else (ORANGE if self.last_temp_c is None else GREEN)
+        temp_color = RED if self.sensor.last_temp_c is not None and self.sensor.last_temp_c >= 60 else (ORANGE if self.sensor.last_temp_c is None else GREEN)
         lcd.text(fit_text(self._temp_text(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 24, temp_color)
 
         if self.show_extra:
-            if self.last_voltage is not None:
-                voltage_text = "Sensor {:.3f} V".format(self.last_voltage)
+            if self.sensor.last_voltage is not None:
+                voltage_text = "Sensor {:.3f} V".format(self.sensor.last_voltage)
                 lcd.text(fit_text(voltage_text, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, GRAY)
             else:
                 lcd.text(fit_text("Sensor not exposed by firmware", WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, GRAY)
 
             y = WINDOW_CONTENT_Y + 64
             lcd.text(fit_text("Wi-Fi " + self._wifi_text(runtime), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y, BLACK)
-            uptime_seconds = max(0, _ticks_diff(_ticks_ms(), self.boot_ms) // 1000)
+            uptime_seconds = max(0, ticks_diff(ticks_ms(), self.boot_ms) // 1000)
             lcd.text(fit_text("Up    " + _format_uptime(uptime_seconds), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 18, BLACK)
             lcd.text(fit_text("FW    " + self._fw_text(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 36, BLUE)
             lcd.text(fit_text("Page  extended", WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 54, GRAY)
         else:
-            if self.last_voltage is not None:
-                voltage_text = "Sensor {:.3f} V".format(self.last_voltage)
+            if self.sensor.last_voltage is not None:
+                voltage_text = "Sensor {:.3f} V".format(self.sensor.last_voltage)
                 lcd.text(fit_text(voltage_text, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, GRAY)
             else:
                 lcd.text(fit_text("Sensor not exposed by firmware", WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, GRAY)
@@ -226,7 +161,7 @@ class DeviceStatusApp:
             lcd.text("Page  overview", WINDOW_CONTENT_X, y + 54, GRAY)
 
         note = "Approx sensor"
-        if self.temp_error and self.last_temp_c is None:
-            note = fit_text(self.temp_error, WINDOW_TEXT_CHARS)
+        if self.sensor.temp_error and self.sensor.last_temp_c is None:
+            note = fit_text(self.sensor.temp_error, WINDOW_TEXT_CHARS)
         draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_BOTTOM - 18, WINDOW_CONTENT_W, 16, note, ORANGE)
         return None

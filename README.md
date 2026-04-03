@@ -14,6 +14,7 @@ Included apps:
 - `Galaxy`: the original galaxy/system/planet explorer
 - `Wi-Fi`: status, scan, join flow, saved passwords, and boot-time reconnect to remembered networks
 - `Browser`: bookmark-only faux web browser with API-backed pages
+- `Server`: on-demand local web dashboard with JSON APIs while the app stays open
 - `Weather`: current conditions plus a short forecast for a built-in city list using Open-Meteo
 - `Calculator`: four-function on-screen calculator
 - `Device Status`: small system monitor with internal sensor and runtime status
@@ -32,7 +33,7 @@ Desktop shell notes:
 - the D-pad drives a desktop mouse pointer again, including the taskbar and `Start` menu, and the pointer accelerates while you hold a direction
 - `Start` now lives on the bottom taskbar, with `Run...` and `About PicoOS` available from the menu
 - the bottom-right tray shows Wi-Fi state and the current `HH:MM` if the device RTC is valid, otherwise it falls back to `Pico`
-- utility apps such as `Wi-Fi`, `Browser`, `Weather`, `Calc`, `Status`, and `Games` open in a Win95-style window shell with a live taskbar button
+- utility apps such as `Wi-Fi`, `Browser`, `Server`, `Weather`, `Calc`, `Status`, and `Games` open in a Win95-style window shell with a live taskbar button
 - `Y` now opens a contextual help/about dialog on the desktop and inside apps, so most static control footers are gone
 - `Games`, `Calculator`, `Status`, and `Wi-Fi` now use more Explorer/control-panel style list and field chrome
 - arcade apps such as `Mines`, `Invaders`, `Pac-Man`, `Arkanoid`, and `Tetris` now live inside the desktop `Games` folder
@@ -59,6 +60,7 @@ App-specific notes:
 - `Galaxy`: the galaxy and selector maps now show a center reticle with parallax star motion, while the system and planet views use a floating scanner window in the top-right; `Top (A)` backs out, `Bottom (B)` enters, and `X` recenters the current target or snaps the system view back to the first planet
 - `Wi-Fi`: open it from the tray or `Start`. It opens in a maximized network window, `Top (A)` backs out, `Bottom (B)` opens or joins, `X` rescans network lists, and `X` also cycles password keyboard pages
 - `Browser`: opens on `about:bookmarks`; `Up/Down` picks bookmarks or links, `Left/Right` switches top-level sites, `Bottom (B)` opens or reloads, `Top (A)` goes back, and `X` jumps ahead to the next site
+- `Server`: hosts a local web dashboard only while the app is open; `Top (A)` switches overview vs detail pages, `Bottom (B)` restarts the listener, and `X` clears request metrics
 - `Weather`: `Left/Right` switches between built-in cities, `Up/Down` toggles current conditions vs forecast, `Bottom (B)` refreshes data, and `X` jumps to the next city
 - `Calculator`: `Top (A)` deletes one character, `Bottom (B)` presses the highlighted key, and `X` clears the expression
 - `Device Status`: shows approximate internal temperature, CPU clock, free RAM, uptime, firmware, and Wi-Fi state; `Top (A)` toggles `C/F`, `Bottom (B)` forces a fresh sample, and `X` switches between overview and extended details. If the current Pico firmware does not expose the internal ADC temp channel, it will show the sensor as unavailable instead of crashing
@@ -81,6 +83,8 @@ App-specific notes:
 - [core/buttons.py](/Users/szymon/picotest/picoone/core/buttons.py): GPIO input handling and `A + B` home-chord detection
 - [core/wifi.py](/Users/szymon/picotest/picoone/core/wifi.py): Pico W network helpers
 - [core/http.py](/Users/szymon/picotest/picoone/core/http.py): small JSON fetch helper for public API-backed apps
+- [core/server.py](/Users/szymon/picotest/picoone/core/server.py): tiny non-blocking local HTTP server used by the `Server` app
+- [core/temperature.py](/Users/szymon/picotest/picoone/core/temperature.py): shared Pico internal temperature sampling helper
 - [core/ui.py](/Users/szymon/picotest/picoone/core/ui.py): shared drawing helpers
 - [apps/](/Users/szymon/picotest/picoone/apps): launcher apps
 - [apps/games/](/Users/szymon/picotest/picoone/apps/games): arcade game apps shown inside the `Games` desktop folder
@@ -154,6 +158,24 @@ Behavior notes:
 - pages are cached in memory after a successful load so a later failed refresh can still show the stale page
 - the Browser app depends on Wi-Fi and the same HTTP client support as the Weather app
 - this is a bookmark viewer with fake sites, not an arbitrary URL loader
+
+## Server App Notes
+
+The Server app exposes a small local dashboard served by the Pico itself.
+
+It can:
+- listen on port `80` only while the `Server` app is open
+- serve `/` with a Bootstrap + React dashboard loaded from public CDNs
+- serve `/api/status` with Wi-Fi, Pico, and server state
+- serve `/api/metrics` with total requests, rolling `60s` traffic, and last-hit details
+- show the preferred host as `pico.local` and always show the direct IP fallback on the device screen
+- show the direct `http://<ip>/` access URL on the device screen even when `pico.local` is unavailable
+- keep running request stats visible on the Pico screen while the app stays active
+- keep the Pico LCD focused on server access and traffic details instead of generic device stats
+
+Current limits:
+- `pico.local` is best-effort and depends on the deployed firmware/network exposing hostname or mDNS support
+- if the client browser has no internet access, the dashboard HTML still loads but the React/Bootstrap CDN assets may not
 
 ## Deploying
 

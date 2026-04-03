@@ -45,16 +45,16 @@ START_MENU_ROW_H = 16
 DESKTOP_TOP = 2
 DESKTOP_BOTTOM = TASKBAR_Y - 2
 
-WINDOW_X = 6
-WINDOW_Y = 6
-WINDOW_W = SCREEN_W - (WINDOW_X * 2)
-WINDOW_H = TASKBAR_Y - WINDOW_Y - 4
+WINDOW_X = 0
+WINDOW_Y = 0
+WINDOW_W = SCREEN_W
+WINDOW_H = TASKBAR_Y - WINDOW_Y
 WINDOW_TITLE_H = 14
 WINDOW_FOOTER_H = 16
-WINDOW_CONTENT_X = WINDOW_X + 6
-WINDOW_CONTENT_Y = WINDOW_Y + WINDOW_TITLE_H + 8
-WINDOW_CONTENT_W = WINDOW_W - 12
-WINDOW_CONTENT_BOTTOM = WINDOW_Y + WINDOW_H - 4
+WINDOW_CONTENT_X = WINDOW_X + 4
+WINDOW_CONTENT_Y = WINDOW_Y + WINDOW_TITLE_H + 4
+WINDOW_CONTENT_W = WINDOW_W - 8
+WINDOW_CONTENT_BOTTOM = WINDOW_Y + WINDOW_H - 2
 WINDOW_CONTENT_H = WINDOW_CONTENT_BOTTOM - WINDOW_CONTENT_Y
 WINDOW_FOOTER_Y = WINDOW_Y + WINDOW_H - WINDOW_FOOTER_H
 WINDOW_TEXT_CHARS = max(1, WINDOW_CONTENT_W // 8)
@@ -469,24 +469,24 @@ def draw_window_shell(lcd, title, wifi_status=None):
 
     _draw_bevel_box(lcd, WINDOW_X, WINDOW_Y, WINDOW_W, WINDOW_H, PANEL_BG)
     lcd.fill_rect(
-        WINDOW_X + 3,
-        WINDOW_Y + WINDOW_TITLE_H + 1,
-        WINDOW_W - 6,
-        WINDOW_H - WINDOW_TITLE_H - 4,
+        WINDOW_X + 1,
+        WINDOW_Y + WINDOW_TITLE_H,
+        WINDOW_W - 2,
+        WINDOW_H - WINDOW_TITLE_H - 1,
         WHITE,
     )
 
-    title_w = WINDOW_W - 42
+    title_w = WINDOW_W - 36
     _draw_title_band(
         lcd,
-        WINDOW_X + 3,
-        WINDOW_Y + 2,
+        WINDOW_X + 1,
+        WINDOW_Y + 1,
         title_w,
         WINDOW_TITLE_H - 1,
         fit_text(title, max(1, (title_w - 16) // 8)),
         logo=True,
     )
-    _draw_window_controls(lcd, WINDOW_X + WINDOW_W - 37, WINDOW_Y + 4)
+    _draw_window_controls(lcd, WINDOW_X + WINDOW_W - 35, WINDOW_Y + 2)
 
 
 def draw_window_footer(lcd, text, color=BLACK):

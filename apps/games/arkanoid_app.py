@@ -1,6 +1,6 @@
 from core.display import BLACK, WHITE, GRAY, YELLOW, CYAN, RED, ORANGE, GREEN, BLUE
-from core.controls import A_LABEL, B_LABEL
-from core.ui import CONTENT_TOP, CONTENT_BOTTOM, SCREEN_W, draw_header, draw_footer_actions
+from core.controls import A_LABEL, B_LABEL, X_LABEL
+from core.ui import CONTENT_TOP, CONTENT_BOTTOM, SCREEN_W, draw_footer, draw_header
 
 
 BRICK_ROWS = 4
@@ -42,6 +42,15 @@ class ArkanoidApp:
 
     def on_open(self, runtime):
         self.reset_game()
+
+    def help_lines(self, runtime):
+        return [
+            "Arkanoid controls",
+            "Left/Right moves the paddle",
+            B_LABEL + " launches the ball",
+            A_LABEL + " resets the wall",
+            X_LABEL + " restarts anytime",
+        ]
 
     def reset_game(self):
         self.paddle_x = (SCREEN_W - PADDLE_W) // 2
@@ -135,21 +144,16 @@ class ArkanoidApp:
         lcd.ellipse(self.ball_x, self.ball_y, 4, 4, YELLOW, True)
         lcd.text("S" + str(self.score), SCREEN_W - 44, CONTENT_TOP - 12, WHITE)
 
-        if self.state == "playing":
-            if self.launched:
-                draw_footer_actions(lcd, A_LABEL + " reset", "", GRAY)
-            else:
-                draw_footer_actions(lcd, B_LABEL + " launch", A_LABEL + " reset", GRAY)
-        elif self.state == "won":
-            draw_footer_actions(lcd, "Wall clear", A_LABEL + " restart", GREEN)
-        else:
-            draw_footer_actions(lcd, "No lives", A_LABEL + " restart", RED)
+        if self.state == "won":
+            draw_footer(lcd, "Wall clear", GREEN)
+        elif self.state == "lost":
+            draw_footer(lcd, "No lives", RED)
 
     def step(self, runtime):
         buttons = runtime.buttons
         lcd = runtime.lcd
 
-        if buttons.pressed("A"):
+        if buttons.pressed("A") or buttons.pressed("X"):
             self.reset_game()
 
         if self.state == "playing":

@@ -5,7 +5,7 @@ import time
 from machine import ADC, freq
 
 from core.display import BLACK, CYAN, GRAY, GREEN, ORANGE, RED
-from core.controls import A_LABEL, B_LABEL
+from core.controls import A_LABEL, B_LABEL, HOME_HINT, X_LABEL
 from core.ui import (
     WINDOW_CONTENT_X,
     WINDOW_CONTENT_Y,
@@ -13,7 +13,6 @@ from core.ui import (
     WINDOW_CONTENT_BOTTOM,
     WINDOW_TEXT_CHARS,
     draw_field,
-    draw_window_footer_actions,
     draw_window_shell,
     fit_text,
 )
@@ -58,6 +57,7 @@ class DeviceStatusApp:
         self.last_temp_c = None
         self.last_voltage = None
         self.show_fahrenheit = False
+        self.show_extra = False
         self.boot_ms = _ticks_ms()
 
     def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
@@ -70,7 +70,17 @@ class DeviceStatusApp:
         lcd.hline(cx - 2, cy + 6, 8, frame)
 
     def on_open(self, runtime):
+        self.show_extra = False
         self._sample(force=True)
+
+    def help_lines(self, runtime):
+        return [
+            "Status controls",
+            B_LABEL + " sample now",
+            A_LABEL + " toggle C/F",
+            X_LABEL + " switch detail page",
+            HOME_HINT,
+        ]
 
     def _init_sensor(self):
         if self.sensor_checked:
@@ -162,6 +172,8 @@ class DeviceStatusApp:
         buttons = runtime.buttons
         if buttons.pressed("A"):
             self.show_fahrenheit = not self.show_fahrenheit
+        if buttons.pressed("X"):
+            self.show_extra = not self.show_extra
         if buttons.pressed("B"):
             self._sample(force=True)
         else:
@@ -174,23 +186,34 @@ class DeviceStatusApp:
         temp_color = RED if self.last_temp_c is not None and self.last_temp_c >= 60 else (ORANGE if self.last_temp_c is None else GREEN)
         lcd.text(fit_text(self._temp_text(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 24, temp_color)
 
-        if self.last_voltage is not None:
-            voltage_text = "Sensor {:.3f} V".format(self.last_voltage)
-            lcd.text(fit_text(voltage_text, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, GRAY)
-        else:
-            lcd.text(fit_text("Sensor not exposed by firmware", WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, GRAY)
+        if self.show_extra:
+            if self.last_voltage is not None:
+                voltage_text = "Sensor {:.3f} V".format(self.last_voltage)
+                lcd.text(fit_text(voltage_text, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, GRAY)
+            else:
+                lcd.text(fit_text("Sensor not exposed by firmware", WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, GRAY)
 
-        y = WINDOW_CONTENT_Y + 64
-        lcd.text(fit_text("CPU   " + self._freq_text(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y, BLACK)
-        lcd.text(fit_text("RAM   " + self._mem_text(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 18, BLACK)
-        lcd.text(fit_text("Wi-Fi " + self._wifi_text(runtime), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 36, BLACK)
-        uptime_seconds = max(0, _ticks_diff(_ticks_ms(), self.boot_ms) // 1000)
-        lcd.text(fit_text("Up    " + _format_uptime(uptime_seconds), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 54, BLACK)
-        lcd.text(fit_text("FW    " + self._fw_text(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 72, CYAN)
+            y = WINDOW_CONTENT_Y + 64
+            lcd.text(fit_text("Wi-Fi " + self._wifi_text(runtime), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y, BLACK)
+            uptime_seconds = max(0, _ticks_diff(_ticks_ms(), self.boot_ms) // 1000)
+            lcd.text(fit_text("Up    " + _format_uptime(uptime_seconds), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 18, BLACK)
+            lcd.text(fit_text("FW    " + self._fw_text(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 36, CYAN)
+            lcd.text(fit_text("Page  extended", WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 54, GRAY)
+        else:
+            if self.last_voltage is not None:
+                voltage_text = "Sensor {:.3f} V".format(self.last_voltage)
+                lcd.text(fit_text(voltage_text, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, GRAY)
+            else:
+                lcd.text(fit_text("Sensor not exposed by firmware", WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, GRAY)
+
+            y = WINDOW_CONTENT_Y + 64
+            lcd.text(fit_text("CPU   " + self._freq_text(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y, BLACK)
+            lcd.text(fit_text("RAM   " + self._mem_text(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 18, BLACK)
+            lcd.text(fit_text("Wi-Fi " + self._wifi_text(runtime), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 36, BLACK)
+            lcd.text("Page  overview", WINDOW_CONTENT_X, y + 54, GRAY)
 
         note = "Approx sensor"
         if self.temp_error and self.last_temp_c is None:
             note = fit_text(self.temp_error, WINDOW_TEXT_CHARS)
         draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_BOTTOM - 18, WINDOW_CONTENT_W, 16, note, ORANGE)
-        draw_window_footer_actions(lcd, A_LABEL + " C/F", B_LABEL + " sample", BLACK)
         return None

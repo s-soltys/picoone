@@ -1,7 +1,7 @@
 import time
 
 from core.display import BLACK, WHITE, CYAN, YELLOW, GREEN, GRAY, ORANGE, RED
-from core.controls import A_LABEL, B_LABEL, HOME_HINT
+from core.controls import A_LABEL, B_LABEL, X_LABEL
 from core.ui import (
     WINDOW_CONTENT_X,
     WINDOW_CONTENT_Y,
@@ -12,8 +12,6 @@ from core.ui import (
     draw_field,
     draw_list_row,
     draw_window_shell,
-    draw_window_footer,
-    draw_window_footer_actions,
     fit_text,
 )
 
@@ -106,6 +104,15 @@ class WiFiStatusApp:
 
         if requested == "list" and runtime.wifi.supported():
             self._open_networks(runtime)
+
+    def help_lines(self, runtime):
+        return [
+            "Wi-Fi controls",
+            A_LABEL + " backs out or returns",
+            B_LABEL + " opens, joins, or confirms",
+            X_LABEL + " rescans lists / changes keys",
+            "D-pad moves rows, keys, or pages",
+        ]
 
     def refresh(self, runtime):
         self.saved_profiles = runtime.wifi.load_profiles()
@@ -274,6 +281,9 @@ class WiFiStatusApp:
         card_y = WINDOW_CONTENT_BOTTOM - 24
         draw_field(lcd, WINDOW_CONTENT_X, card_y, WINDOW_CONTENT_W, 18, label + (" " + detail if detail else ""), GREEN)
 
+    def _draw_bottom_note(self, lcd, text, accent=BLACK):
+        draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_BOTTOM - 18, WINDOW_CONTENT_W, 16, text, accent)
+
     def _draw_status(self, lcd, runtime):
         status = runtime.wifi.status()
         draw_window_shell(lcd, "Network", status)
@@ -281,7 +291,7 @@ class WiFiStatusApp:
         if not status["supported"]:
             lcd.text("No network module", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, ORANGE)
             lcd.text("found on device", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 28, BLACK)
-            draw_window_footer(lcd, A_LABEL + " desk", BLACK)
+            self._draw_bottom_note(lcd, "No Wi-Fi hardware", ORANGE)
             return
 
         y = WINDOW_CONTENT_Y + 6
@@ -314,7 +324,7 @@ class WiFiStatusApp:
             lcd.text("will wake Wi-Fi", WINDOW_CONTENT_X, y + 72, GRAY)
             self._draw_status_card(lcd, "Wake + Scan", "")
 
-        draw_window_footer_actions(lcd, A_LABEL + " desk", B_LABEL + " open", BLACK)
+        self._draw_bottom_note(lcd, "Status view", GREEN)
 
     def _draw_list(self, lcd, runtime):
         status = runtime.wifi.status()
@@ -328,7 +338,7 @@ class WiFiStatusApp:
         if not status["supported"]:
             lcd.text("No network module", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, ORANGE)
             lcd.text("found on device", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 28, BLACK)
-            draw_window_footer(lcd, A_LABEL + " status", BLACK)
+            self._draw_bottom_note(lcd, "No Wi-Fi hardware", ORANGE)
             return
 
         summary = "Ready"
@@ -358,12 +368,12 @@ class WiFiStatusApp:
 
         if self.error:
             lcd.text(fit_text(self.error, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 48, ORANGE)
-            draw_window_footer(lcd, A_LABEL + " status", BLACK)
+            self._draw_bottom_note(lcd, "Scan failed", ORANGE)
             return
 
         if not self.results:
             lcd.text("No SSIDs found", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 48, GRAY)
-            draw_window_footer(lcd, A_LABEL + " status", BLACK)
+            self._draw_bottom_note(lcd, "No nearby networks", GRAY)
             return
 
         y = WINDOW_CONTENT_Y + 48
@@ -384,7 +394,7 @@ class WiFiStatusApp:
             )
             y += 14
 
-        draw_window_footer_actions(lcd, A_LABEL + " status", B_LABEL + " join", BLACK)
+        self._draw_bottom_note(lcd, str(len(self.results)) + " networks", GREEN)
 
     def _draw_keyboard(self, lcd, runtime):
         page_name = KEYBOARD_PAGES[self.keyboard_page][0]
@@ -408,7 +418,7 @@ class WiFiStatusApp:
             18,
             fit_text(buffer_text[-WINDOW_TEXT_CHARS:], WINDOW_TEXT_CHARS),
             YELLOW if self.password_buffer else GRAY,
-            YELLOW if self.password_buffer else GRAY,
+            BLACK if self.password_buffer else GRAY,
         )
         note_color = GRAY if self.keyboard_note == KEYBOARD_NOTE else ORANGE
         lcd.text(fit_text(self.keyboard_note, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 68, note_color)
@@ -423,7 +433,7 @@ class WiFiStatusApp:
             selected = offset == 0
             draw_button(lcd, x, slot_y, slot_w, 18, label, selected, WHITE)
 
-        draw_window_footer_actions(lcd, A_LABEL + " next", B_LABEL + " pick", BLACK)
+        self._draw_bottom_note(lcd, "Keyboard " + page_name, YELLOW)
 
     def _draw_connecting(self, lcd, runtime):
         dots = "." * ((time.ticks_ms() // 250) % 4)
@@ -432,7 +442,7 @@ class WiFiStatusApp:
         draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, WINDOW_CONTENT_W, 16, ssid, CYAN)
         lcd.text("Connecting" + dots, WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 52, BLACK)
         lcd.text("Please wait", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 74, GRAY)
-        draw_window_footer(lcd, HOME_HINT, BLACK)
+        self._draw_bottom_note(lcd, "Joining network", CYAN)
 
     def _draw_result(self, lcd, runtime):
         ok = self.result and self.result["ok"]
@@ -447,15 +457,15 @@ class WiFiStatusApp:
             lcd.text(fit_text("IP " + ip, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 38, BLACK)
             if self.connect_remember and self.connect_password:
                 lcd.text("Password saved", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 62, GRAY)
-            draw_window_footer_actions(lcd, A_LABEL + " status", B_LABEL + " nets", BLACK)
+            self._draw_bottom_note(lcd, "Join complete", GREEN)
         else:
             error = self.result["error"] if self.result else "connection failed"
             lcd.text(fit_text(error, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 38, ORANGE)
             if self._secure_network(self.current_network):
-                lcd.text(B_LABEL + " edit pass", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 62, GRAY)
-                draw_window_footer_actions(lcd, A_LABEL + " status", B_LABEL + " edit", BLACK)
+                lcd.text("Password can be edited", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 62, GRAY)
             else:
-                draw_window_footer_actions(lcd, A_LABEL + " status", B_LABEL + " retry", BLACK)
+                lcd.text("Retry available", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 62, GRAY)
+            self._draw_bottom_note(lcd, "Join failed", ORANGE)
 
     def _step_status(self, runtime):
         if runtime.buttons.pressed("A"):
@@ -471,6 +481,8 @@ class WiFiStatusApp:
             self._move_selection(-1)
         if buttons.repeat("DOWN", 180, 100):
             self._move_selection(1)
+        if buttons.pressed("X"):
+            self.refresh(runtime)
         if buttons.pressed("A"):
             self.state = "status"
         if buttons.pressed("B"):
@@ -499,6 +511,8 @@ class WiFiStatusApp:
             self.keyboard_index = (self.keyboard_index - 1) % len(tokens)
         if buttons.repeat("RIGHT", 160, 80):
             self.keyboard_index = (self.keyboard_index + 1) % len(tokens)
+        if buttons.pressed("X"):
+            self._set_keyboard_page(self.keyboard_page + 1)
         if buttons.pressed("A") or buttons.repeat("A", 220, 90):
             self.keyboard_index = (self.keyboard_index + 1) % len(tokens)
         if buttons.repeat("UP", 180, 100):

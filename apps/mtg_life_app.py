@@ -1,6 +1,6 @@
 from core.display import BLACK, WHITE, RED, GREEN, BLUE, AMBER, CYAN, SCREEN_W, SCREEN_H
-from core.controls import A_LABEL, B_LABEL, X_LABEL, Y_LABEL
-from core.ui import draw_footer_actions, draw_header
+from core.controls import A_LABEL, B_LABEL, X_LABEL
+from core.ui import contrast_text_color, draw_header
 
 
 SEGMENTS = {
@@ -28,7 +28,7 @@ class MTGLifeCounterApp:
     def __init__(self):
         self.life = [40, 40, 40, 40]
         self.selected = 0
-        self.reset_latched = False
+        self.step_size = 5
 
     def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
         ink = BLACK if monochrome and selected else (WHITE if monochrome else RED)
@@ -39,7 +39,16 @@ class MTGLifeCounterApp:
         lcd.fill_rect(cx - 3, cy - 3, 6, 6, detail)
 
     def on_open(self, runtime):
-        self.reset_latched = False
+        self.step_size = 5
+
+    def help_lines(self, runtime):
+        return [
+            "MTG Life controls",
+            "Left/Right picks a player",
+            A_LABEL + " -1 and " + B_LABEL + " +1",
+            "Up/Down changes by current step",
+            X_LABEL + " toggles x1 / x5, X+B resets all",
+        ]
 
     def _grid_rect(self, index):
         content_top = 18
@@ -69,6 +78,9 @@ class MTGLifeCounterApp:
     def _reset_match(self):
         for index in range(4):
             self.life[index] = 40
+
+    def _step_label(self):
+        return "x" + str(self.step_size)
 
     def _draw_segment_char(self, lcd, x, y, scale, char, color):
         width = 12 * scale
@@ -108,14 +120,14 @@ class MTGLifeCounterApp:
         selected = index == self.selected
         life = self.life[index]
         fill = PLAYER_COLORS[index]
-        text_color = WHITE
-        accent = CYAN if selected else BLACK
+        text_color = contrast_text_color(fill)
+        accent = WHITE if text_color == BLACK else WHITE
 
         lcd.fill_rect(x, y, w, h, fill)
         lcd.rect(x, y, w, h, BLACK)
         if selected:
-            lcd.rect(x + 2, y + 2, w - 4, h - 4, WHITE)
-            lcd.rect(x + 4, y + 4, w - 8, h - 8, WHITE)
+            lcd.rect(x + 2, y + 2, w - 4, h - 4, accent)
+            lcd.rect(x + 4, y + 4, w - 8, h - 8, BLACK if accent == WHITE else WHITE)
 
         lcd.fill_rect(x + 6, y + 6, 26, 12, BLACK)
         lcd.text("P" + str(index + 1), x + 11, y + 8, WHITE)
@@ -128,10 +140,10 @@ class MTGLifeCounterApp:
 
         lcd.fill_rect(x + 8, y + h - 30, w - 16, 22, BLACK)
         if selected:
-            lcd.text("A/B +/-1", x + 20, y + h - 28, WHITE)
-            lcd.text("X/Y +/-5", x + 20, y + h - 16, WHITE)
+            lcd.text("STEP " + self._step_label(), x + 18, y + h - 28, WHITE)
+            lcd.text("U/D adjust", x + 18, y + h - 16, WHITE)
         else:
-            lcd.text("D-pad select", x + 16, y + h - 18, WHITE)
+            lcd.text("L/R select", x + 18, y + h - 18, WHITE)
 
         lcd.hline(x + 8, y + h - 34, w - 16, accent)
 
@@ -140,33 +152,27 @@ class MTGLifeCounterApp:
         lcd = runtime.lcd
 
         if buttons.repeat("LEFT", 180, 100):
-            self._move_selected(dx=-1)
+            self.selected = (self.selected - 1) % len(self.life)
         if buttons.repeat("RIGHT", 180, 100):
-            self._move_selected(dx=1)
-        if buttons.repeat("UP", 180, 100):
-            self._move_selected(dy=-1)
-        if buttons.repeat("DOWN", 180, 100):
-            self._move_selected(dy=1)
+            self.selected = (self.selected + 1) % len(self.life)
 
-        reset_combo = buttons.down("X") and buttons.down("Y")
-        if reset_combo:
-            if not self.reset_latched:
-                self._reset_match()
-                self.reset_latched = True
+        if buttons.pressed("X"):
+            self.step_size = 1 if self.step_size == 5 else 5
+
+        if buttons.down("X") and buttons.pressed("B"):
+            self._reset_match()
         else:
-            self.reset_latched = False
             if buttons.repeat("A", 260, 110):
                 self._adjust_selected(-1)
             if buttons.repeat("B", 260, 110):
                 self._adjust_selected(1)
-            if buttons.repeat("X", 260, 110):
-                self._adjust_selected(-5)
-            if buttons.repeat("Y", 260, 110):
-                self._adjust_selected(5)
+            if buttons.repeat("UP", 220, 110):
+                self._adjust_selected(self.step_size)
+            if buttons.repeat("DOWN", 220, 110):
+                self._adjust_selected(-self.step_size)
 
         lcd.fill(BLACK)
-        draw_header(lcd, "MTG Life", "X+Y rst", CYAN)
+        draw_header(lcd, "MTG Life", self._step_label(), CYAN)
         for index in range(4):
             self._draw_player_panel(lcd, index)
-        draw_footer_actions(lcd, A_LABEL + " -1", B_LABEL + " +1", CYAN)
         return None

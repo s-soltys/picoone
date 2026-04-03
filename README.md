@@ -27,12 +27,14 @@ Included apps:
 - `Paint`: simple pixel painter
 
 Desktop shell notes:
-- the shell now leans into a tiny Windows 95-style desktop with a teal background, gray taskbar, blue title bars, and beveled window chrome
+- the shell now boots through a black Win95-style splash screen before landing on the desktop
+- the shell now leans into a tiny Windows 95-style desktop with a teal background, gray taskbar, blue title bars, beveled window chrome, and colorful desktop icons
 - apps are shown as compact desktop icons in a `4x4` grid instead of launcher tiles
-- the D-pad drives a desktop mouse pointer again, including the taskbar and `Start` menu
+- the D-pad drives a desktop mouse pointer again, including the taskbar and `Start` menu, and the pointer accelerates while you hold a direction
 - `Start` now lives on the bottom taskbar, with `Run...` and `About PicoOS` available from the menu
 - the bottom-right tray shows Wi-Fi state and the current `HH:MM` if the device RTC is valid, otherwise it falls back to `Pico`
 - utility apps such as `Wi-Fi`, `Browser`, `Weather`, `Calc`, `Files`, `Status`, and `Games` open in a Win95-style window shell with a live taskbar button
+- `Y` now opens a contextual help/about dialog on the desktop and inside apps, so most static control footers are gone
 - `Files`, `Games`, `Calculator`, `Status`, and `Wi-Fi` now use more Explorer/control-panel style list and field chrome
 - arcade apps such as `Mines`, `Invaders`, `Pac-Man`, `Arkanoid`, and `Tetris` now live inside the desktop `Games` folder
 - immersive apps such as `Galaxy` and `Paint` stay full screen
@@ -44,30 +46,32 @@ Shared controls:
 - In-app D-pad: move selection / scroll / pan
 - `Top (A)`: open or close `Start` on the desktop, or act as the app's secondary action
 - `Bottom (B)`: primary action, open, select, or confirm depending on the app
+- `Y`: open contextual help/about for the current desktop or app view
+- `X`: app-specific shortcut on the desktop and in many apps
 - `Top + Bottom`: global home shortcut, returns to the launcher from any app
 
 Board notes:
 - The launcher now targets the Pico-LCD-1.3 native `240x240` panel.
-- The board exposes `X`, `Y`, and joystick press buttons. This repo version now uses `X` and `Y` in the Browser app and the MTG Commander life counter.
+- The board exposes `X`, `Y`, and joystick press buttons. This repo version now reserves `Y` for contextual help and uses `X` as an app-specific shortcut in the desktop shell, utilities, and games.
 
 App-specific notes:
-- `Desktop`: D-pad moves the pointer, `Top (A)` opens or closes `Start`, and `Bottom (B)` clicks the icon or taskbar item under the pointer
+- `Desktop`: D-pad moves the pointer, `Top (A)` opens or closes `Start`, `Bottom (B)` clicks the icon or taskbar item under the pointer, `X` snaps back to the current icon, and `Y` opens desktop help
 - `Taskbar`: move the pointer onto `Start` or the tray, then press `Bottom (B)` to open them
-- `Galaxy`: the galaxy and selector maps now show a center reticle with parallax star motion, while the system and planet views use a floating scanner window in the top-right; `Top (A)` jumps to the next galaxy on the overview, `Bottom (B)` enters the current target, and `Top (A)` backs out of deeper views
-- `Wi-Fi`: open it from the tray or `Start`. It opens in a maximized network window, `Top (A)` closes back to the desktop from status, `Bottom (B)` opens the network list, and `Bottom (B)` joins the highlighted network
-- `Browser`: opens on `about:bookmarks`, `Up/Down` or `X/Y` picks a bookmark, `Bottom (B)` opens a site, and once inside a page `Up/Down` chooses links or entries, `Bottom (B)` opens the selected item, `X/Y` switches top-level sites, and `Top (A)` goes back
-- `Weather`: `Left/Right` switches between built-in cities, `Up/Down` toggles current conditions vs forecast, and `Bottom (B)` refreshes data
-- `Calculator`: `Top (A)` deletes one character, `Bottom (B)` presses the highlighted key
-- `Files`: `Top (A)` goes back, `Bottom (B)` opens a folder or file preview
-- `Device Status`: shows approximate internal temperature, CPU clock, free RAM, uptime, firmware, and Wi-Fi state; `Top (A)` toggles `C/F`, and `Bottom (B)` forces a fresh sample. If the current Pico firmware does not expose the internal ADC temp channel, it will show the sensor as unavailable instead of crashing
-- `MTG Life`: full-screen four-player Commander board with one color per player; D-pad picks a seat, `Top (A)` is `-1`, `Bottom (B)` is `+1`, `X` is `-5`, `Y` is `+5`, and pressing `X + Y` resets the table to `40`
-- `Games`: opens the arcade folder window, `Up/Down` chooses a game, `Bottom (B)` launches it, and `Top (A)` returns to the desktop
-- `Mines`: `Top (A)` toggles a flag while playing and restarts after a win/loss, `Bottom (B)` reveals a tile
-- `Invaders`: D-pad moves, `Bottom (B)` fires, `Top (A)` restarts, and the pacing is faster than before
-- `Pac-Man`: D-pad steers, `Bottom (B)` pauses/resumes, `Top (A)` restarts
-- `Arkanoid`: D-pad moves, `Bottom (B)` launches, `Top (A)` resets, and the paddle/ball pace is faster than before
-- `Tetris`: D-pad moves, `Top (A)` rotates, `Bottom (B)` hard-drops
-- `Paint`: D-pad moves, `Top (A)` cycles colors, `Bottom (B)` paints, and choosing white acts as erase
+- `Galaxy`: the galaxy and selector maps now show a center reticle with parallax star motion, while the system and planet views use a floating scanner window in the top-right; `Top (A)` backs out, `Bottom (B)` enters, and `X` recenters the current target or snaps the system view back to the first planet
+- `Wi-Fi`: open it from the tray or `Start`. It opens in a maximized network window, `Top (A)` backs out, `Bottom (B)` opens or joins, `X` rescans network lists, and `X` also cycles password keyboard pages
+- `Browser`: opens on `about:bookmarks`; `Up/Down` picks bookmarks or links, `Left/Right` switches top-level sites, `Bottom (B)` opens or reloads, `Top (A)` goes back, and `X` jumps ahead to the next site
+- `Weather`: `Left/Right` switches between built-in cities, `Up/Down` toggles current conditions vs forecast, `Bottom (B)` refreshes data, and `X` jumps to the next city
+- `Calculator`: `Top (A)` deletes one character, `Bottom (B)` presses the highlighted key, and `X` clears the expression
+- `Files`: `Top (A)` goes back or closes preview, `Bottom (B)` opens a folder or file, and `X` opens a quick preview for the highlighted entry
+- `Device Status`: shows approximate internal temperature, CPU clock, free RAM, uptime, firmware, and Wi-Fi state; `Top (A)` toggles `C/F`, `Bottom (B)` forces a fresh sample, and `X` switches between overview and extended details. If the current Pico firmware does not expose the internal ADC temp channel, it will show the sensor as unavailable instead of crashing
+- `MTG Life`: full-screen four-player Commander board with one color per player; `Left/Right` picks a player, `Top (A)` is `-1`, `Bottom (B)` is `+1`, `Up/Down` changes by the active step, `X` toggles `x1` vs `x5`, and `X` + `Bottom (B)` resets the table to `40`
+- `Games`: opens the arcade folder window, `Up/Down` chooses a game, `Bottom (B)` launches it, `X` jumps one page, and `Top (A)` returns to the desktop
+- `Mines`: D-pad moves, `Top (A)` toggles a flag, `Bottom (B)` reveals a tile, and `X` starts a new board
+- `Invaders`: D-pad moves, `Bottom (B)` fires, `Top (A)` restarts, and `X` restarts instantly
+- `Pac-Man`: D-pad steers, `Bottom (B)` pauses/resumes, `Top (A)` restarts, and `X` restarts instantly
+- `Arkanoid`: D-pad moves, `Bottom (B)` launches, `Top (A)` resets, and `X` restarts instantly
+- `Tetris`: D-pad moves, `Down` soft-drops, `Top (A)` rotates, `Bottom (B)` hard-drops, and `X` restarts the board
+- `Paint`: D-pad moves, `Top (A)` cycles colors forward, `X` cycles backward, `Bottom (B)` paints, and choosing white acts as erase
 
 ## Project Layout
 
@@ -86,10 +90,10 @@ App-specific notes:
 ## Adding Apps
 
 1. Create a new app class under `apps/`.
-2. Give it `app_id`, `title`, `accent`, `draw_icon()`, `on_open()`, and `step()` methods.
+2. Give it `app_id`, `title`, `accent`, `draw_icon()`, `on_open()`, and `step()` methods. Add `help_lines(runtime)` when the app needs contextual control text for the shared `Y` help dialog.
 3. Optionally set `launch_mode = "window"` if it should open in the shared desktop window shell above the taskbar. Omit it for full-screen apps.
 4. Register it in [apps/__init__.py](/Users/szymon/picotest/picoone/apps/__init__.py).
-5. Keep navigation on the shared button model and do not bypass the global `A + B` home gesture.
+5. Keep navigation on the shared button model, expose app-specific help through `Y`, and do not bypass the global `A + B` home gesture.
 
 If the app is a game-like launcher item, prefer adding it under [apps/games/](/Users/szymon/picotest/picoone/apps/games) and exposing it through the `Games` folder instead of creating another top-level desktop icon.
 

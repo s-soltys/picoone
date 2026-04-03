@@ -2,8 +2,8 @@ import random
 import time
 
 from core.display import BLACK, WHITE, GRAY, YELLOW, GREEN, RED, CYAN, BLUE, ORANGE, SLATE, DKGRN
-from core.controls import A_LABEL, B_LABEL
-from core.ui import CONTENT_TOP, SCREEN_W, draw_header, draw_footer_actions
+from core.controls import A_LABEL, B_LABEL, X_LABEL
+from core.ui import CONTENT_TOP, SCREEN_W, draw_footer, draw_header
 
 
 GRID_W = 8
@@ -49,6 +49,15 @@ class MinesApp:
 
     def on_open(self, runtime):
         self.reset_board()
+
+    def help_lines(self, runtime):
+        return [
+            "Mines controls",
+            "D-pad moves the cursor",
+            B_LABEL + " reveals a tile",
+            A_LABEL + " toggles a flag",
+            X_LABEL + " starts a new board",
+        ]
 
     def reset_board(self):
         self.board = []
@@ -185,6 +194,9 @@ class MinesApp:
         if buttons.repeat("DOWN"):
             self.cursor_y = min(GRID_H - 1, self.cursor_y + 1)
 
+        if buttons.pressed("X"):
+            self.reset_board()
+
         if self.state == "playing":
             if buttons.pressed("A"):
                 self.toggle_flag(self.cursor_x, self.cursor_y)
@@ -199,9 +211,7 @@ class MinesApp:
         self.draw_grid(lcd)
 
         if self.state == "won":
-            draw_footer_actions(lcd, "Cleared", A_LABEL + " new", CYAN)
+            draw_footer(lcd, "Cleared", CYAN)
         elif self.state == "lost":
-            draw_footer_actions(lcd, "Boom", A_LABEL + " retry", RED)
-        else:
-            draw_footer_actions(lcd, B_LABEL + " dig", A_LABEL + " flag", GRAY)
+            draw_footer(lcd, "Boom", RED)
         return None

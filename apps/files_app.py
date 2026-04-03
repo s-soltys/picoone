@@ -1,5 +1,5 @@
 from core.display import BLACK, WHITE, CYAN, GRAY, AMBER, TEAL
-from core.controls import A_LABEL, B_LABEL
+from core.controls import A_LABEL, B_LABEL, X_LABEL
 from core.ui import (
     LIST_ROW_H,
     WINDOW_CONTENT_X,
@@ -10,7 +10,6 @@ from core.ui import (
     draw_field,
     draw_list_row,
     draw_window_shell,
-    draw_window_footer_actions,
     fit_text,
 )
 
@@ -90,6 +89,15 @@ class FilesApp:
         self.preview = None
         self.rows = max(1, (WINDOW_CONTENT_BOTTOM - (WINDOW_CONTENT_Y + 54)) // LIST_ROW_H)
 
+    def help_lines(self, runtime):
+        return [
+            "Explorer controls",
+            "Up/Down moves the list",
+            B_LABEL + " open folder or file",
+            X_LABEL + " quick preview",
+            A_LABEL + " go up or close preview",
+        ]
+
     def current_dir(self):
         return self.stack[-1]
 
@@ -130,6 +138,8 @@ class FilesApp:
                     self.scroll = 0
                 else:
                     self.preview = choice
+            if buttons.pressed("X"):
+                self.preview = items[self.selected]
 
             if self.selected < self.scroll:
                 self.scroll = self.selected
@@ -142,11 +152,16 @@ class FilesApp:
             item = self.preview
             draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y, WINDOW_CONTENT_W, 16, self.current_path() + "/" + item["name"], TEAL)
             lcd.text(fit_text(item["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 28, CYAN)
-            lcd.text("Type  File", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 52, BLACK)
-            lcd.text("Size  " + item["size"], WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 70, BLACK)
-            lcd.text(fit_text(item["meta"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 96, GRAY)
+            kind_text = "DIR" if item["kind"] == "dir" else "FILE"
+            lcd.text("Type  " + kind_text, WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 52, BLACK)
+            if item["kind"] == "dir":
+                count = len(item.get("children", []))
+                lcd.text("Items " + str(count), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 70, BLACK)
+                lcd.text("Folder preview", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 96, GRAY)
+            else:
+                lcd.text("Size  " + item["size"], WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 70, BLACK)
+                lcd.text(fit_text(item["meta"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 96, GRAY)
             draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_BOTTOM - 18, WINDOW_CONTENT_W, 16, "1 object selected", AMBER)
-            draw_window_footer_actions(lcd, A_LABEL + " back", "", BLACK)
             return None
 
         draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y, WINDOW_CONTENT_W, 16, self.current_path(), TEAL)
@@ -180,6 +195,4 @@ class FilesApp:
         if items:
             status_text += "  " + fit_text(items[self.selected]["name"], 10)
         draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_BOTTOM - 18, WINDOW_CONTENT_W, 16, status_text, AMBER)
-
-        draw_window_footer_actions(lcd, B_LABEL + " open", A_LABEL + " up", BLACK)
         return None

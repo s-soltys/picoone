@@ -1,5 +1,5 @@
 from core.display import BLACK, WHITE, GRAY, CYAN, ORANGE
-from core.controls import A_LABEL, B_LABEL
+from core.controls import A_LABEL, B_LABEL, X_LABEL
 from core.ui import (
     WINDOW_CONTENT_X,
     WINDOW_CONTENT_Y,
@@ -8,7 +8,6 @@ from core.ui import (
     draw_button,
     draw_field,
     draw_window_shell,
-    draw_window_footer_actions,
     fit_text,
 )
 
@@ -54,6 +53,15 @@ class CalculatorApp:
         self.result = ""
         self.error = ""
         self.just_evaluated = False
+
+    def help_lines(self, runtime):
+        return [
+            "Calculator controls",
+            "D-pad moves the keypad",
+            B_LABEL + " press key",
+            A_LABEL + " backspace",
+            X_LABEL + " clear all",
+        ]
 
     def backspace(self):
         self.error = ""
@@ -152,6 +160,11 @@ class CalculatorApp:
             self.cursor_y = min(3, self.cursor_y + 1)
         if buttons.pressed("A"):
             self.backspace()
+        if buttons.pressed("X"):
+            self.expression = ""
+            self.result = ""
+            self.error = ""
+            self.just_evaluated = False
         if buttons.pressed("B"):
             self.press_key(KEYPAD[self.cursor_y][self.cursor_x])
 
@@ -162,7 +175,7 @@ class CalculatorApp:
         if self.error:
             lcd.text(fit_text(self.error, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 26, ORANGE)
         else:
-            result = self.result if self.result else B_LABEL + " eval"
+            result = self.result if self.result else "Ready"
             lcd.text(fit_text(result, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 26, CYAN)
 
         for row in range(4):
@@ -172,6 +185,4 @@ class CalculatorApp:
                 key = KEYPAD[row][col]
                 selected = row == self.cursor_y and col == self.cursor_x
                 draw_button(lcd, x, y, key_w, key_h, key, selected, WHITE)
-
-        draw_window_footer_actions(lcd, A_LABEL + " del", B_LABEL + " key", BLACK)
         return None

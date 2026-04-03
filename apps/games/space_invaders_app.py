@@ -1,8 +1,8 @@
 import random
 
 from core.display import BLACK, WHITE, GRAY, YELLOW, GREEN, RED, CYAN
-from core.controls import A_LABEL, B_LABEL
-from core.ui import CONTENT_TOP, CONTENT_BOTTOM, SCREEN_W, draw_header, draw_footer_actions
+from core.controls import A_LABEL, B_LABEL, X_LABEL
+from core.ui import CONTENT_TOP, CONTENT_BOTTOM, SCREEN_W, draw_footer, draw_header
 
 
 PLAY_LEFT = 18
@@ -43,6 +43,15 @@ class SpaceInvadersApp:
 
     def on_open(self, runtime):
         self.reset_game()
+
+    def help_lines(self, runtime):
+        return [
+            "Invaders controls",
+            "Left/Right moves the ship",
+            B_LABEL + " fires",
+            A_LABEL + " resets the wave",
+            X_LABEL + " restarts anytime",
+        ]
 
     def reset_game(self):
         self.player_x = SCREEN_W // 2
@@ -159,18 +168,16 @@ class SpaceInvadersApp:
 
         lcd.text("S" + str(self.score), SCREEN_W - 44, CONTENT_TOP - 12, WHITE)
 
-        if self.state == "playing":
-            draw_footer_actions(lcd, B_LABEL + " fire", A_LABEL + " reset", GRAY)
-        elif self.state == "won":
-            draw_footer_actions(lcd, "Wave clear", A_LABEL + " restart", CYAN)
-        else:
-            draw_footer_actions(lcd, "Invaded", A_LABEL + " restart", RED)
+        if self.state == "won":
+            draw_footer(lcd, "Wave clear", CYAN)
+        elif self.state == "lost":
+            draw_footer(lcd, "Invaded", RED)
 
     def step(self, runtime):
         buttons = runtime.buttons
         lcd = runtime.lcd
 
-        if buttons.pressed("A"):
+        if buttons.pressed("A") or buttons.pressed("X"):
             self.reset_game()
 
         if self.state == "playing":

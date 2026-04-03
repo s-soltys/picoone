@@ -1,8 +1,8 @@
 import random
 
 from core.display import BLACK, WHITE, GRAY, YELLOW, CYAN, ORANGE, GREEN, RED, BLUE, PURPLE
-from core.controls import A_LABEL, B_LABEL
-from core.ui import CONTENT_TOP, SCREEN_W, draw_header, draw_footer_actions
+from core.controls import A_LABEL, B_LABEL, X_LABEL
+from core.ui import CONTENT_TOP, SCREEN_W, draw_footer, draw_header
 
 
 BOARD_W = 10
@@ -72,6 +72,15 @@ class TetrisApp:
 
     def on_open(self, runtime):
         self.reset_game()
+
+    def help_lines(self, runtime):
+        return [
+            "Tetris controls",
+            "Left/Right moves the piece",
+            "Down soft-drops",
+            A_LABEL + " rotates, " + B_LABEL + " hard-drops",
+            X_LABEL + " restarts the board",
+        ]
 
     def reset_game(self):
         self.board = []
@@ -200,14 +209,15 @@ class TetrisApp:
         if self.state == "lost":
             lcd.text("LOCKED", preview_x, CONTENT_TOP + 86, RED)
 
-        if self.state == "playing":
-            draw_footer_actions(lcd, A_LABEL + " rotate", B_LABEL + " drop", GRAY)
-        else:
-            draw_footer_actions(lcd, A_LABEL + " restart", "", RED)
+        if self.state == "lost":
+            draw_footer(lcd, "Locked", RED)
 
     def step(self, runtime):
         buttons = runtime.buttons
         lcd = runtime.lcd
+
+        if buttons.pressed("X"):
+            self.reset_game()
 
         if buttons.pressed("A"):
             if self.state == "playing":

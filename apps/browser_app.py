@@ -1,7 +1,7 @@
 import time
 
 from core.display import BLACK, WHITE, GRAY, CYAN
-from core.controls import A_LABEL, B_LABEL, X_LABEL, Y_LABEL
+from core.controls import A_LABEL, B_LABEL, X_LABEL
 from core.http import build_url, get_json
 from core.ui import (
     WINDOW_CONTENT_X,
@@ -10,7 +10,6 @@ from core.ui import (
     WINDOW_CONTENT_BOTTOM,
     WINDOW_TEXT_CHARS,
     draw_window_shell,
-    draw_window_footer_actions,
     fit_text,
 )
 
@@ -464,6 +463,16 @@ class BrowserApp:
         self.page_stack = []
         self.pending_request = None
 
+    def help_lines(self, runtime):
+        return [
+            "Browser controls",
+            "Up/Down picks bookmarks or items",
+            "Left/Right switches top sites",
+            B_LABEL + " opens or reloads",
+            A_LABEL + " goes back",
+            X_LABEL + " jumps to the next site",
+        ]
+
     def _bookmark(self, index=None):
         if index is None:
             index = self.selected
@@ -603,8 +612,6 @@ class BrowserApp:
             lcd.text(fit_text(site["host"] + site["path"], WINDOW_TEXT_CHARS - 2), WINDOW_CONTENT_X + 2, row_y + 11, meta_color)
             row_y += row_h
 
-        draw_window_footer_actions(lcd, X_LABEL + "/" + Y_LABEL + " pick", B_LABEL + " open", BLACK)
-
     def _draw_loading(self, lcd, runtime):
         request = self.pending_request or {}
         draw_window_shell(lcd, "Browser", runtime.wifi.status())
@@ -613,8 +620,7 @@ class BrowserApp:
         lcd.text(fit_text(request.get("title", "Loading"), 16), WINDOW_CONTENT_X + 4, WINDOW_CONTENT_Y + 25, WHITE)
         lcd.text("Fetching page", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 50, BLACK)
         lcd.text("Please wait", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 68, BLACK)
-        lcd.text("A back / B stop", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 92, GRAY)
-        draw_window_footer_actions(lcd, X_LABEL + "/" + Y_LABEL + " site", B_LABEL + " stop", BLACK)
+        lcd.text("Rendering page", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 92, GRAY)
 
     def _draw_page(self, lcd, runtime):
         page = self._current_page()
@@ -664,12 +670,8 @@ class BrowserApp:
         else:
             status_line = page["source"] + " / " + self._loaded_text(page.get("loaded_ms"))
             if items:
-                status_line = "U/D pick / B open"
+                status_line = str(len(items)) + " items from " + page["source"]
         lcd.text(fit_text(status_line, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_BOTTOM - 10, GRAY)
-
-        back_text = A_LABEL + " back" if len(self.page_stack) > 1 else A_LABEL + " list"
-        action_text = B_LABEL + " open" if items else B_LABEL + " reload"
-        draw_window_footer_actions(lcd, back_text, action_text, BLACK)
 
     def _draw_error(self, lcd, runtime):
         request = self.pending_request or {}
@@ -678,7 +680,6 @@ class BrowserApp:
         lcd.text("Page unavailable", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 28, BLACK)
         lcd.text(fit_text(self.page_error or "Browser error", WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 52, BLACK)
         lcd.text("Open Wi-Fi first", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 76, GRAY)
-        draw_window_footer_actions(lcd, A_LABEL + " back", B_LABEL + " retry", BLACK)
 
     def _load_item_request(self, item):
         action = item.get("action")
@@ -765,13 +766,9 @@ class BrowserApp:
         if self.state == "bookmarks":
             if buttons.pressed("A"):
                 return "home"
-            if buttons.repeat("UP", 180, 100):
+            if buttons.repeat("UP", 180, 100) or buttons.repeat("LEFT", 180, 100):
                 self._move_selection(-1)
-            if buttons.repeat("DOWN", 180, 100):
-                self._move_selection(1)
-            if buttons.pressed("X"):
-                self._move_selection(-1)
-            if buttons.pressed("Y"):
+            if buttons.repeat("DOWN", 180, 100) or buttons.repeat("RIGHT", 180, 100) or buttons.pressed("X"):
                 self._move_selection(1)
             if buttons.pressed("B"):
                 self._start_root_loading(self.selected)
@@ -779,12 +776,12 @@ class BrowserApp:
             return None
 
         if self.state == "loading":
-            if buttons.pressed("X"):
+            if buttons.pressed("LEFT"):
                 self.page_stack = []
                 self._browse_adjacent(-1)
                 self._draw_loading(lcd, runtime)
                 return None
-            if buttons.pressed("Y"):
+            if buttons.pressed("RIGHT") or buttons.pressed("X"):
                 self.page_stack = []
                 self._browse_adjacent(1)
                 self._draw_loading(lcd, runtime)
@@ -804,12 +801,12 @@ class BrowserApp:
                 return None
             self._load_request(runtime)
         elif self.state == "error":
-            if buttons.pressed("X"):
+            if buttons.pressed("LEFT"):
                 self.page_stack = []
                 self._browse_adjacent(-1)
                 self._draw_loading(lcd, runtime)
                 return None
-            if buttons.pressed("Y"):
+            if buttons.pressed("RIGHT") or buttons.pressed("X"):
                 self.page_stack = []
                 self._browse_adjacent(1)
                 self._draw_loading(lcd, runtime)
@@ -833,12 +830,12 @@ class BrowserApp:
             return None
         else:
             page = self._current_page()
-            if buttons.pressed("X"):
+            if buttons.pressed("LEFT"):
                 self.page_stack = []
                 self._browse_adjacent(-1)
                 self._draw_loading(lcd, runtime)
                 return None
-            if buttons.pressed("Y"):
+            if buttons.pressed("RIGHT") or buttons.pressed("X"):
                 self.page_stack = []
                 self._browse_adjacent(1)
                 self._draw_loading(lcd, runtime)

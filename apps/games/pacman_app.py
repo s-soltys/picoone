@@ -1,8 +1,8 @@
 import random
 
 from core.display import BLACK, WHITE, GRAY, YELLOW, BLUE, RED, CYAN, GREEN, ORANGE
-from core.controls import A_LABEL, B_LABEL
-from core.ui import CONTENT_TOP, SCREEN_W, draw_header, draw_footer_actions
+from core.controls import A_LABEL, B_LABEL, X_LABEL
+from core.ui import CONTENT_TOP, SCREEN_W, draw_footer, draw_header
 
 
 PAC_MAP = [
@@ -51,6 +51,15 @@ class PacmanApp:
 
     def on_open(self, runtime):
         self.reset_game()
+
+    def help_lines(self, runtime):
+        return [
+            "Pac-Man controls",
+            "D-pad steers the maze run",
+            B_LABEL + " pauses or resumes",
+            A_LABEL + " resets the maze",
+            X_LABEL + " restarts anytime",
+        ]
 
     def reset_game(self):
         self.walls = set()
@@ -198,20 +207,18 @@ class PacmanApp:
             lcd.pixel(gx - 2, gy - 2, WHITE)
             lcd.pixel(gx + 2, gy - 2, WHITE)
 
-        if self.state == "playing" and not self.paused:
-            draw_footer_actions(lcd, B_LABEL + " pause", A_LABEL + " reset", GRAY)
-        elif self.paused:
-            draw_footer_actions(lcd, "Paused", B_LABEL + " resume", CYAN)
+        if self.paused:
+            draw_footer(lcd, "Paused", CYAN)
         elif self.state == "won":
-            draw_footer_actions(lcd, "Maze clear", A_LABEL + " restart", GREEN)
-        else:
-            draw_footer_actions(lcd, "Caught", A_LABEL + " restart", RED)
+            draw_footer(lcd, "Maze clear", GREEN)
+        elif self.state == "lost":
+            draw_footer(lcd, "Caught", RED)
 
     def step(self, runtime):
         buttons = runtime.buttons
         lcd = runtime.lcd
 
-        if buttons.pressed("A"):
+        if buttons.pressed("A") or buttons.pressed("X"):
             self.reset_game()
 
         if buttons.down("LEFT"):

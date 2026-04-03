@@ -1,5 +1,5 @@
 from core.display import BLACK, WHITE, GRAY, AMBER
-from core.controls import A_LABEL, B_LABEL
+from core.controls import A_LABEL, B_LABEL, X_LABEL
 from core.ui import (
     LIST_ROW_H,
     WINDOW_CONTENT_X,
@@ -10,7 +10,6 @@ from core.ui import (
     draw_field,
     draw_list_row,
     draw_window_shell,
-    draw_window_footer_actions,
     fit_text,
 )
 
@@ -28,12 +27,12 @@ class GamesFolderApp:
         self.rows = max(1, (WINDOW_CONTENT_BOTTOM - (WINDOW_CONTENT_Y + 44)) // LIST_ROW_H)
 
     def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
-        ink = BLACK if monochrome else WHITE
-        tab = BLACK if monochrome else WHITE
+        ink = BLACK if monochrome and selected else (WHITE if monochrome else AMBER)
+        tab = BLACK if monochrome and selected else (WHITE if monochrome else WHITE)
         lcd.rect(cx - 10, cy - 5, 20, 12, ink)
         lcd.fill_rect(cx - 8, cy - 8, 7, 4, tab)
         lcd.hline(cx - 8, cy + 1, 14, ink)
-        lcd.hline(cx - 8, cy + 4, 10, ink)
+        lcd.hline(cx - 8, cy + 4, 10, BLACK if monochrome and selected else WHITE)
 
     def on_open(self, runtime):
         if self.selected >= len(self.games):
@@ -42,6 +41,15 @@ class GamesFolderApp:
             self.scroll = self.selected
         if self.selected >= self.scroll + self.rows:
             self.scroll = self.selected - (self.rows - 1)
+
+    def help_lines(self, runtime):
+        return [
+            "Games folder controls",
+            "Up/Down moves the list",
+            B_LABEL + " launch game",
+            X_LABEL + " jump one page",
+            A_LABEL + " return home",
+        ]
 
     def step(self, runtime):
         buttons = runtime.buttons
@@ -54,6 +62,8 @@ class GamesFolderApp:
             self.selected = max(0, self.selected - 1)
         if buttons.repeat("DOWN"):
             self.selected = min(len(self.games) - 1, self.selected + 1)
+        if buttons.pressed("X") and self.games:
+            self.selected = min(len(self.games) - 1, self.selected + self.rows)
         if buttons.pressed("B") and self.games:
             runtime.open_app(self.games[self.selected])
             return None
@@ -92,6 +102,4 @@ class GamesFolderApp:
             fit_text("Selected: " + self.games[self.selected].title, WINDOW_TEXT_CHARS),
             AMBER,
         )
-
-        draw_window_footer_actions(lcd, A_LABEL + " desk", B_LABEL + " open", BLACK)
         return None

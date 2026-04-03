@@ -4,6 +4,7 @@ import time
 
 from core.display import LCD, BLACK, GRAY
 from core.buttons import ButtonManager
+from core.controls import A_LABEL, B_LABEL, HELP_HINT, HOME_HINT, X_LABEL, Y_LABEL
 from core.ui import (
     SCREEN_W,
     SCREEN_H,
@@ -14,13 +15,14 @@ from core.ui import (
     START_MENU_ROW_H,
     WINDOW_CONTENT_X,
     WINDOW_CONTENT_Y,
+    draw_boot_splash,
     draw_desktop_background,
     draw_desktop_icon,
     draw_dialog,
+    draw_help_dialog,
     draw_mouse_pointer,
     draw_start_menu,
     draw_taskbar,
-    draw_window_shell,
     taskbar_regions,
 )
 from core.wifi import WiFiHelper
@@ -29,10 +31,15 @@ from apps import build_apps
 
 class Launcher:
     CURSOR_STEP = 8
+    CURSOR_MEDIUM_STEP = 12
+    CURSOR_FAST_STEP = 18
+    CURSOR_ACCEL_MEDIUM_MS = 180
+    CURSOR_ACCEL_FAST_MS = 520
     ICON_COLS = 4
     ICON_ROWS = 4
     MENU_FRAME_MS = 12
     APP_FRAME_MS = 30
+    SPLASH_MS = 3000
 
     def __init__(self):
         self.lcd = LCD()
@@ -48,11 +55,16 @@ class Launcher:
         self.start_selected = 0
         self.dialog = ""
         self.run_selected = 0
+        self.help_open = False
+        self.help_title = ""
+        self.help_lines = []
         self.led = None
         self.start_items = self._build_start_items()
         self.run_items = self._build_run_items()
         self.cursor_x = 18
         self.cursor_y = DESKTOP_TOP + 18
+        self.cursor_axis = {"x": 0, "y": 0}
+        self.cursor_axis_since = {"x": 0, "y": 0}
         layout = self._desktop_layout()
         if layout:
             x, y, w, _ = layout[0]
@@ -121,6 +133,7 @@ class Launcher:
 
         self.start_open = False
         self.dialog = ""
+        self.help_open = False
         self.active_app = app
         self.active_mode = getattr(self.active_app, "launch_mode", "fullscreen")
         if hasattr(self.active_app, "on_open"):
@@ -133,6 +146,7 @@ class Launcher:
         self.active_mode = "desktop"
         self.start_open = False
         self.dialog = ""
+        self.help_open = False
 
     def _desktop_layout(self):
         left = 6
@@ -153,18 +167,56 @@ class Launcher:
         x, y, w, h = rect
         return x <= self.cursor_x < x + w and y <= self.cursor_y < y + h
 
+    def _cursor_axis_step(self, axis_name, direction, now_ms):
+        if direction != self.cursor_axis[axis_name]:
+            self.cursor_axis[axis_name] = direction
+            self.cursor_axis_since[axis_name] = now_ms
+
+        if direction == 0:
+            return 0
+
+        held_ms = time.ticks_diff(now_ms, self.cursor_axis_since[axis_name])
+        step = self.CURSOR_STEP
+        if held_ms >= self.CURSOR_ACCEL_FAST_MS:
+            step = self.CURSOR_FAST_STEP
+        elif held_ms >= self.CURSOR_ACCEL_MEDIUM_MS:
+            step = self.CURSOR_MEDIUM_STEP
+        return direction * step
+
     def _move_cursor(self):
-        if self.buttons.down("LEFT"):
-            self.cursor_x -= self.CURSOR_STEP
-        if self.buttons.down("RIGHT"):
-            self.cursor_x += self.CURSOR_STEP
-        if self.buttons.down("UP"):
-            self.cursor_y -= self.CURSOR_STEP
-        if self.buttons.down("DOWN"):
-            self.cursor_y += self.CURSOR_STEP
+        now_ms = time.ticks_ms()
+        x_dir = 0
+        y_dir = 0
+        if self.buttons.down("LEFT") and not self.buttons.down("RIGHT"):
+            x_dir = -1
+        elif self.buttons.down("RIGHT") and not self.buttons.down("LEFT"):
+            x_dir = 1
+        if self.buttons.down("UP") and not self.buttons.down("DOWN"):
+            y_dir = -1
+        elif self.buttons.down("DOWN") and not self.buttons.down("UP"):
+            y_dir = 1
+
+        self.cursor_x += self._cursor_axis_step("x", x_dir, now_ms)
+        self.cursor_y += self._cursor_axis_step("y", y_dir, now_ms)
 
         self.cursor_x = min(SCREEN_W - 6, max(0, self.cursor_x))
         self.cursor_y = min(SCREEN_H - 8, max(0, self.cursor_y))
+
+    def _snap_cursor_to_rect(self, rect):
+        x, y, w, h = rect
+        self.cursor_x = min(SCREEN_W - 6, max(0, x + (w // 2)))
+        self.cursor_y = min(SCREEN_H - 8, max(0, y + (h // 2)))
+
+    def _snap_cursor_to_index(self, index):
+        layout = self._desktop_layout()
+        if 0 <= index < len(layout):
+            self._snap_cursor_to_rect(layout[index])
+
+    def _snap_cursor_to_start(self, index):
+        x, y, width, _ = self._start_menu_rect()
+        row_x = x + 22
+        row_y = y + 22 + (index * START_MENU_ROW_H)
+        self._snap_cursor_to_rect((row_x, row_y, width - 28, START_MENU_ROW_H))
 
     def _hovered_index(self):
         for index, rect in enumerate(self._desktop_layout()):
@@ -248,15 +300,98 @@ class Launcher:
             self._memory_text(),
         ]
 
-    def draw_boot(self):
-        draw_window_shell(self.lcd, "Welcome", self.wifi.status())
-        self.lcd.text("PicoOS desktop", WINDOW_CONTENT_X + 46, WINDOW_CONTENT_Y + 10, BLACK)
-        self.lcd.text("D-pad moves cursor", WINDOW_CONTENT_X + 14, WINDOW_CONTENT_Y + 34, BLACK)
-        self.lcd.text("Bottom (B) clicks", WINDOW_CONTENT_X + 14, WINDOW_CONTENT_Y + 56, BLACK)
-        self.lcd.text("Top (A) Start menu", WINDOW_CONTENT_X + 14, WINDOW_CONTENT_Y + 78, BLACK)
-        self.lcd.text("Top + Bottom home", WINDOW_CONTENT_X + 14, WINDOW_CONTENT_Y + 108, GRAY)
-        self.lcd.display()
-        time.sleep(0.75)
+    def _desktop_help_lines(self):
+        if self.dialog == "run":
+            return [
+                "Run dialog",
+                "Up/Down pick command",
+                A_LABEL + " cancel",
+                B_LABEL + " open",
+                Y_LABEL + " close help",
+            ]
+        if self.dialog == "about":
+            return [
+                "About PicoOS",
+                A_LABEL + " close dialog",
+                B_LABEL + " close dialog",
+                Y_LABEL + " close help",
+                HOME_HINT,
+            ]
+        if self.start_open:
+            return [
+                "Desktop Start menu",
+                "D-pad moves pointer",
+                B_LABEL + " open entry",
+                A_LABEL + " close Start",
+                X_LABEL + " snap to active row",
+            ]
+        return [
+            "Desktop controls",
+            "D-pad moves pointer",
+            B_LABEL + " click or open",
+            A_LABEL + " open Start",
+            X_LABEL + " snap to icon",
+            HOME_HINT,
+        ]
+
+    def _app_help_payload(self):
+        if self.active_app is None:
+            return ("Desktop Help", self._desktop_help_lines())
+
+        title = getattr(self.active_app, "help_title", getattr(self.active_app, "title", "App")) + " Help"
+        if hasattr(self.active_app, "help_lines"):
+            try:
+                lines = self.active_app.help_lines(self)
+            except TypeError:
+                lines = self.active_app.help_lines()
+        else:
+            lines = [
+                getattr(self.active_app, "title", "App"),
+                "Use the D-pad to move",
+                B_LABEL + " primary action",
+                A_LABEL + " secondary action",
+                HOME_HINT,
+            ]
+        return (title, lines)
+
+    def _open_help(self):
+        self.help_title, self.help_lines = self._app_help_payload()
+        self.help_open = True
+        if self.active_app is None:
+            self.draw_home()
+        self._draw_help()
+
+    def _draw_help(self):
+        draw_help_dialog(self.lcd, self.help_title, self.help_lines)
+
+    def _step_help(self):
+        if self.active_app is not None and self.buttons.home_triggered():
+            self.go_home()
+            self.draw_home()
+            return
+        if self.buttons.pressed("Y") or self.buttons.pressed("A") or self.buttons.pressed("B"):
+            self.help_open = False
+            if self.active_app is None:
+                self.draw_home()
+            return
+        self._draw_help()
+
+    def show_splash(self):
+        started_ms = time.ticks_ms()
+        while True:
+            self.wifi.poll_auto_connect()
+            self.buttons.update()
+            elapsed_ms = time.ticks_diff(time.ticks_ms(), started_ms)
+            draw_boot_splash(self.lcd, elapsed_ms)
+            self.lcd.display()
+            if elapsed_ms >= self.SPLASH_MS or self.buttons.any_pressed() or self.buttons.any_down():
+                break
+            time.sleep_ms(30)
+
+        self.buttons.update()
+        while self.buttons.any_down():
+            time.sleep_ms(20)
+            self.buttons.update()
 
     def draw_home(self):
         draw_desktop_background(self.lcd)
@@ -337,6 +472,11 @@ class Launcher:
         if hovered_row is not None:
             self.start_selected = hovered_row
 
+        if self.buttons.pressed("X"):
+            self._snap_cursor_to_start(self.start_selected)
+            self.draw_home()
+            return
+
         if self.buttons.pressed("A"):
             self._close_start()
             self.draw_home()
@@ -363,6 +503,14 @@ class Launcher:
         hovered_index = self._hovered_index()
         if hovered_index is not None:
             self.selected_index = hovered_index
+
+        if self.buttons.pressed("X"):
+            if hovered_index is not None:
+                self._snap_cursor_to_index(hovered_index)
+            else:
+                self._snap_cursor_to_index(self.selected_index)
+            self.draw_home()
+            return
 
         if self.buttons.pressed("A"):
             if self.start_open:
@@ -406,16 +554,24 @@ class Launcher:
 
     def run(self):
         self.wifi.start_auto_connect()
-        self.draw_boot()
+        self.show_splash()
+        self.draw_home()
         while True:
             self.wifi.poll_auto_connect()
             self.buttons.update()
-            if self.active_app is None:
-                self.step_home()
+            if self.help_open:
+                self._step_help()
+            elif self.active_app is None:
+                if self.buttons.pressed("Y"):
+                    self._open_help()
+                else:
+                    self.step_home()
             else:
                 if self.buttons.home_triggered():
                     self.go_home()
                     self.draw_home()
+                elif self.buttons.pressed("Y"):
+                    self._open_help()
                 else:
                     action = self.active_app.step(self)
                     if action == "home":

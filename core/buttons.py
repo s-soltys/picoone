@@ -63,6 +63,12 @@ class ButtonManager:
     def pressed(self, name):
         return self._events.get(name, False)
 
+    def any_pressed(self):
+        for name in self._events:
+            if self._events[name]:
+                return True
+        return False
+
     def repeat(self, name, delay_ms=None, interval_ms=None):
         if self.pressed(name):
             return True
@@ -90,6 +96,11 @@ class ButtonManager:
 
     def home_triggered(self):
         return self._home_triggered
+
+    def held_ms(self, name):
+        if not self.down(name):
+            return 0
+        return max(0, time.ticks_diff(self._now_ms, self._last_press_ms.get(name, self._now_ms)))
 
     def any_down(self):
         for name in self._current:

@@ -1,7 +1,6 @@
 from apps.browser_app import BrowserApp
 from apps.calculator import CalculatorApp
 from apps.device_status import DeviceStatusApp
-from apps.files_app import FilesApp
 from apps.galaxy_app import GalaxyApp
 from apps.games import build_games
 from apps.games_folder_app import GamesFolderApp
@@ -18,7 +17,6 @@ def build_apps():
         BrowserApp(),
         WeatherApp(),
         CalculatorApp(),
-        FilesApp(),
         DeviceStatusApp(),
         MTGLifeCounterApp(),
         PaintApp(),

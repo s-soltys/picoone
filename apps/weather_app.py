@@ -1,6 +1,6 @@
 import time
 
-from core.display import BLACK, WHITE, CYAN, YELLOW, GRAY, BLUE, TEAL, ORANGE, GREEN
+from core.display import BLACK, WHITE, GRAY, BLUE, ORANGE, GREEN, YELLOW
 from core.controls import B_LABEL, X_LABEL
 from core.ui import (
     WINDOW_CONTENT_X,
@@ -310,14 +310,14 @@ class WeatherApp:
 
     def _draw_loading(self, lcd, runtime):
         draw_window_shell(lcd, "Weather", runtime.wifi.status())
-        lcd.text(fit_text(self._city()["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, CYAN)
+        lcd.text(fit_text(self._city()["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, BLUE)
         lcd.text("Fetching forecast", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, BLACK)
         lcd.text("Please wait", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 66, GRAY)
         draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_BOTTOM - 18, WINDOW_CONTENT_W, 16, "Loading weather", BLUE)
 
     def _draw_empty(self, lcd, runtime):
         draw_window_shell(lcd, "Weather", runtime.wifi.status())
-        lcd.text(fit_text(self._city()["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, CYAN)
+        lcd.text(fit_text(self._city()["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, BLUE)
         lcd.text(fit_text(self.error or "No weather data", WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 40, BLACK)
         lcd.text("Cached data unavailable", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 66, GRAY)
         draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_BOTTOM - 18, WINDOW_CONTENT_W, 16, "No cached forecast", ORANGE)
@@ -340,7 +340,7 @@ class WeatherApp:
         code = current["weather_code"]
 
         draw_window_shell(lcd, "Weather", runtime.wifi.status())
-        lcd.text(fit_text(city["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 6, CYAN)
+        lcd.text(fit_text(city["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 6, BLUE)
         lcd.text(fit_text(_weather_label(code), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 30, ORANGE if code == 0 else BLACK)
         lcd.text(
             fit_text("T " + _temp_text(current["temperature"]) + " F " + _temp_text(current["feels_like"]), WINDOW_TEXT_CHARS),
@@ -348,14 +348,14 @@ class WeatherApp:
             WINDOW_CONTENT_Y + 58,
             BLACK,
         )
-        lcd.text(fit_text("Wind " + _wind_text(current["wind_speed"]), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 86, TEAL)
+        lcd.text(fit_text("Wind " + _wind_text(current["wind_speed"]), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 86, BLUE)
         self._draw_status_note(lcd)
 
     def _draw_forecast(self, lcd, runtime):
         city = self._city()
 
         draw_window_shell(lcd, "Weather", runtime.wifi.status())
-        lcd.text(fit_text(city["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 6, CYAN)
+        lcd.text(fit_text(city["name"], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 6, BLUE)
 
         y = WINDOW_CONTENT_Y + 36
         for period in self.payload["forecast"]:

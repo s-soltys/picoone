@@ -16,7 +16,6 @@ Included apps:
 - `Browser`: bookmark-only faux web browser with API-backed pages
 - `Weather`: current conditions plus a short forecast for a built-in city list using Open-Meteo
 - `Calculator`: four-function on-screen calculator
-- `Files`: fake read-only file explorer backed by a static in-memory tree
 - `Device Status`: small system monitor with internal sensor and runtime status
 - `MTG Life`: four-player Commander life counter
 - `Mines`: compact minesweeper
@@ -33,9 +32,9 @@ Desktop shell notes:
 - the D-pad drives a desktop mouse pointer again, including the taskbar and `Start` menu, and the pointer accelerates while you hold a direction
 - `Start` now lives on the bottom taskbar, with `Run...` and `About PicoOS` available from the menu
 - the bottom-right tray shows Wi-Fi state and the current `HH:MM` if the device RTC is valid, otherwise it falls back to `Pico`
-- utility apps such as `Wi-Fi`, `Browser`, `Weather`, `Calc`, `Files`, `Status`, and `Games` open in a Win95-style window shell with a live taskbar button
+- utility apps such as `Wi-Fi`, `Browser`, `Weather`, `Calc`, `Status`, and `Games` open in a Win95-style window shell with a live taskbar button
 - `Y` now opens a contextual help/about dialog on the desktop and inside apps, so most static control footers are gone
-- `Files`, `Games`, `Calculator`, `Status`, and `Wi-Fi` now use more Explorer/control-panel style list and field chrome
+- `Games`, `Calculator`, `Status`, and `Wi-Fi` now use more Explorer/control-panel style list and field chrome
 - arcade apps such as `Mines`, `Invaders`, `Pac-Man`, `Arkanoid`, and `Tetris` now live inside the desktop `Games` folder
 - immersive apps such as `Galaxy` and `Paint` stay full screen
 
@@ -62,7 +61,6 @@ App-specific notes:
 - `Browser`: opens on `about:bookmarks`; `Up/Down` picks bookmarks or links, `Left/Right` switches top-level sites, `Bottom (B)` opens or reloads, `Top (A)` goes back, and `X` jumps ahead to the next site
 - `Weather`: `Left/Right` switches between built-in cities, `Up/Down` toggles current conditions vs forecast, `Bottom (B)` refreshes data, and `X` jumps to the next city
 - `Calculator`: `Top (A)` deletes one character, `Bottom (B)` presses the highlighted key, and `X` clears the expression
-- `Files`: `Top (A)` goes back or closes preview, `Bottom (B)` opens a folder or file, and `X` opens a quick preview for the highlighted entry
 - `Device Status`: shows approximate internal temperature, CPU clock, free RAM, uptime, firmware, and Wi-Fi state; `Top (A)` toggles `C/F`, `Bottom (B)` forces a fresh sample, and `X` switches between overview and extended details. If the current Pico firmware does not expose the internal ADC temp channel, it will show the sensor as unavailable instead of crashing
 - `MTG Life`: full-screen four-player Commander board with one color per player; `Left/Right` picks a player, `Top (A)` is `-1`, `Bottom (B)` is `+1`, `Up/Down` changes by the active step, `X` toggles `x1` vs `x5`, and `X` + `Bottom (B)` resets the table to `40`
 - `Games`: opens the arcade folder window, `Up/Down` chooses a game, `Bottom (B)` launches it, `X` jumps one page, and `Top (A)` returns to the desktop
@@ -114,7 +112,7 @@ It can:
 - connect to open networks directly
 - connect to secured networks through an on-screen password keyboard
 - store successful passwords in `wifi_profiles.txt` on the device
-- remember the last successful network and try reconnecting to it on boot
+- remember the last successful network and try reconnecting to it on boot, while also accepting JSON profile entries from `wifi_profiles.txt`
 - reuse credentials from `secrets.py` as a fallback for an existing known SSID
 
 Keyboard flow:

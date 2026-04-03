@@ -86,7 +86,6 @@ class Launcher:
 
     def _build_start_items(self):
         return [
-            {"label": "Files", "detail": "files", "kind": "app", "app": self._find_app("files")},
             {"label": "Device Status", "detail": "stat", "kind": "app", "app": self._find_app("device-status")},
             {"label": "Games", "detail": "games", "kind": "app", "app": self._find_app("games-folder")},
             {"label": "Calculator", "detail": "calc", "kind": "app", "app": self._find_app("calculator")},
@@ -103,7 +102,6 @@ class Launcher:
         return [
             {"label": "browser", "kind": "app", "app": self._find_app("browser")},
             {"label": "calc", "kind": "app", "app": self._find_app("calculator")},
-            {"label": "files", "kind": "app", "app": self._find_app("files")},
             {"label": "galaxy", "kind": "app", "app": self._find_app("galaxy")},
             {"label": "games", "kind": "app", "app": self._find_app("games-folder")},
             {"label": "paint", "kind": "app", "app": self._find_app("paint")},

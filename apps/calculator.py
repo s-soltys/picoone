@@ -1,4 +1,4 @@
-from core.display import BLACK, WHITE, GRAY, CYAN, ORANGE
+from core.display import BLACK, WHITE, GRAY, CYAN, ORANGE, BLUE
 from core.controls import A_LABEL, B_LABEL, X_LABEL
 from core.ui import (
     WINDOW_CONTENT_X,
@@ -176,7 +176,7 @@ class CalculatorApp:
             lcd.text(fit_text(self.error, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 26, ORANGE)
         else:
             result = self.result if self.result else "Ready"
-            lcd.text(fit_text(result, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 26, CYAN)
+            lcd.text(fit_text(result, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 26, BLUE)
 
         for row in range(4):
             for col in range(4):

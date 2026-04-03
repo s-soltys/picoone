@@ -38,7 +38,7 @@ MENU_TITLE = "PicoOS"
 
 TASKBAR_H = 20
 TASKBAR_Y = SCREEN_H - TASKBAR_H
-TASKBAR_START_W = 50
+TASKBAR_START_W = 58
 TASKBAR_TRAY_W = 68
 START_MENU_W = 152
 START_MENU_ROW_H = 16
@@ -409,7 +409,8 @@ def draw_taskbar(lcd, wifi_status=None, active_task="", focus=None, start_open=F
     sx, sy, sw, sh = regions["start_rect"]
     _draw_bevel_box(lcd, sx, sy, sw, sh, PANEL_BG, start_open or focus == "start")
     _draw_win_logo(lcd, sx + 4, sy + 4, 2)
-    lcd.text("Start", sx + 14, sy + 5, BLACK)
+    start_text = fit_text("Start", max(1, (sw - 18) // 8))
+    lcd.text(start_text, sx + 15, sy + 5, BLACK)
 
     if active_task:
         tx, ty, tw, th = regions["task_rect"]
@@ -550,9 +551,7 @@ def draw_desktop_icon(lcd, x, y, w, h, title, selected, icon_fn):
     cx = x + (w // 2)
     cy = y + 14
     if selected:
-        lcd.fill_rect(cx - 16, y + 4, 34, 28, DARKGRAY)
-        _draw_bevel_box(lcd, cx - 18, y + 2, 34, 28, WHITE)
-        lcd.rect(cx - 16, y + 4, 30, 24, NAVY)
+        lcd.fill_rect(cx - 13, y + 7, 26, 20, SKY)
 
     icon_fn(lcd, cx, cy, selected, False)
 

@@ -1,6 +1,6 @@
 import time
 
-from core.display import BLACK, WHITE, CYAN, YELLOW, GREEN, GRAY, ORANGE, RED
+from core.display import BLACK, WHITE, GREEN, GRAY, ORANGE, RED, BLUE, YELLOW
 from core.controls import A_LABEL, B_LABEL, X_LABEL
 from core.ui import (
     WINDOW_CONTENT_X,
@@ -298,7 +298,7 @@ class WiFiStatusApp:
         if status["connected"]:
             ssid = status["ssid"] or "connected"
             ifconfig = status["ifconfig"] or ("ip ?", "mask ?", "gw ?", "dns ?")
-            lcd.text(self._marquee_text(ssid, WINDOW_TEXT_CHARS, ("status", ssid)), WINDOW_CONTENT_X, y, CYAN)
+            lcd.text(self._marquee_text(ssid, WINDOW_TEXT_CHARS, ("status", ssid)), WINDOW_CONTENT_X, y, BLUE)
             lcd.text(fit_text("IP   " + ifconfig[0], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 20, BLACK)
             lcd.text(fit_text("MASK " + ifconfig[1], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 38, BLACK)
             lcd.text(fit_text("GW   " + ifconfig[2], WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 56, BLACK)
@@ -306,13 +306,13 @@ class WiFiStatusApp:
             self._draw_status_card(lcd, "Networks", "scan")
         elif status.get("connecting"):
             target = status.get("target") or "saved network"
-            lcd.text("Restoring Wi-Fi", WINDOW_CONTENT_X, y, CYAN)
+            lcd.text("Restoring Wi-Fi", WINDOW_CONTENT_X, y, BLUE)
             lcd.text(fit_text(target, WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 20, BLACK)
             lcd.text("Saved profile", WINDOW_CONTENT_X, y + 54, BLACK)
             lcd.text("Please wait", WINDOW_CONTENT_X, y + 72, GRAY)
             self._draw_status_card(lcd, "Networks", "scan")
         elif status["active"]:
-            lcd.text("Radio ready", WINDOW_CONTENT_X, y, CYAN)
+            lcd.text("Radio ready", WINDOW_CONTENT_X, y, BLUE)
             lcd.text("Not connected", WINDOW_CONTENT_X, y + 20, BLACK)
             lcd.text("Open the network list", WINDOW_CONTENT_X, y + 54, BLACK)
             lcd.text("to join a hotspot", WINDOW_CONTENT_X, y + 72, GRAY)
@@ -345,10 +345,10 @@ class WiFiStatusApp:
         summary_color = BLACK
         if status["connected"]:
             summary = status["ssid"] or "Connected"
-            summary_color = CYAN
+            summary_color = BLUE
         elif status.get("connecting"):
             summary = status.get("target") or "Joining"
-            summary_color = CYAN
+            summary_color = BLUE
         elif not status["active"]:
             summary = "Radio waking"
             summary_color = ORANGE
@@ -390,7 +390,7 @@ class WiFiStatusApp:
                 index == self.selected,
                 lead=marker,
                 detail=item["security"],
-                text_color=CYAN if self._has_saved_profile(item) else BLACK,
+                text_color=BLUE if self._has_saved_profile(item) else BLACK,
             )
             y += 14
 
@@ -406,7 +406,7 @@ class WiFiStatusApp:
         draw_window_shell(lcd, "Password", runtime.wifi.status())
 
         ssid = self.current_network["ssid"] if self.current_network else "network"
-        draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y, WINDOW_CONTENT_W, 16, ssid, CYAN)
+        draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y, WINDOW_CONTENT_W, 16, ssid, BLUE)
         lcd.text("Page " + page_name, WINDOW_CONTENT_X + 112, WINDOW_CONTENT_Y + 4, GRAY)
         lcd.text("Pass", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 26, BLACK)
         buffer_text = self.password_buffer if self.password_buffer else "_"
@@ -439,10 +439,10 @@ class WiFiStatusApp:
         dots = "." * ((time.ticks_ms() // 250) % 4)
         draw_window_shell(lcd, "Joining", runtime.wifi.status())
         ssid = self.current_network["ssid"] if self.current_network else "network"
-        draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, WINDOW_CONTENT_W, 16, ssid, CYAN)
+        draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, WINDOW_CONTENT_W, 16, ssid, BLUE)
         lcd.text("Connecting" + dots, WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 52, BLACK)
         lcd.text("Please wait", WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 74, GRAY)
-        self._draw_bottom_note(lcd, "Joining network", CYAN)
+        self._draw_bottom_note(lcd, "Joining network", BLUE)
 
     def _draw_result(self, lcd, runtime):
         ok = self.result and self.result["ok"]
@@ -450,7 +450,7 @@ class WiFiStatusApp:
         draw_window_shell(lcd, title, runtime.wifi.status())
 
         ssid = self.current_network["ssid"] if self.current_network else "network"
-        draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, WINDOW_CONTENT_W, 16, ssid, CYAN)
+        draw_field(lcd, WINDOW_CONTENT_X, WINDOW_CONTENT_Y + 8, WINDOW_CONTENT_W, 16, ssid, BLUE)
 
         if ok:
             ip = self.result["ifconfig"][0] if self.result["ifconfig"] else "ip ?"

@@ -1,6 +1,11 @@
 import time
 
 try:
+    import ujson as json
+except ImportError:
+    import json
+
+try:
     import network
 except ImportError:
     network = None
@@ -34,6 +39,31 @@ def _decode_ssid(raw):
         except Exception:
             return str(raw)
     return str(raw)
+
+
+def _normalize_profiles(data):
+    profiles = {}
+    if isinstance(data, dict):
+        for ssid in data:
+            name = _decode_ssid(ssid).strip()
+            if not name:
+                continue
+            password = data[ssid]
+            profiles[name] = "" if password is None else str(password)
+        return profiles
+
+    if not isinstance(data, list):
+        return profiles
+
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+        ssid = _decode_ssid(entry.get("ssid", "")).strip()
+        if not ssid:
+            continue
+        password = entry.get("password", "")
+        profiles[ssid] = "" if password is None else str(password)
+    return profiles
 
 
 class WiFiHelper:
@@ -137,14 +167,24 @@ class WiFiHelper:
         profiles = {}
         try:
             with open(PROFILE_PATH, "r") as handle:
-                for raw_line in handle:
+                raw = handle.read()
+        except OSError:
+            raw = ""
+
+        raw = raw.strip()
+        if raw:
+            if raw[:1] in ("[", "{"):
+                try:
+                    profiles.update(_normalize_profiles(json.loads(raw)))
+                except Exception:
+                    profiles = {}
+            else:
+                for raw_line in raw.splitlines():
                     line = raw_line.strip("\n")
                     if not line or "\t" not in line:
                         continue
                     ssid, password = line.split("\t", 1)
                     profiles[ssid] = password
-        except OSError:
-            pass
 
         if DEFAULT_SSID and DEFAULT_SSID not in profiles:
             profiles[DEFAULT_SSID] = DEFAULT_PASSWORD
@@ -152,11 +192,10 @@ class WiFiHelper:
 
     def _write_profiles(self, profiles):
         with open(PROFILE_PATH, "w") as handle:
+            rows = []
             for ssid in profiles:
-                handle.write(ssid)
-                handle.write("\t")
-                handle.write(profiles[ssid])
-                handle.write("\n")
+                rows.append({"ssid": ssid, "password": profiles[ssid]})
+            handle.write(json.dumps(rows))
 
     def get_saved_password(self, ssid):
         profiles = self.load_profiles()

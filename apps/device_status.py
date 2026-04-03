@@ -4,7 +4,7 @@ import time
 
 from machine import ADC, freq
 
-from core.display import BLACK, CYAN, GRAY, GREEN, ORANGE, RED
+from core.display import BLACK, GRAY, GREEN, ORANGE, RED, BLUE, CYAN
 from core.controls import A_LABEL, B_LABEL, HOME_HINT, X_LABEL
 from core.ui import (
     WINDOW_CONTENT_X,
@@ -58,6 +58,8 @@ class DeviceStatusApp:
         self.last_voltage = None
         self.show_fahrenheit = False
         self.show_extra = False
+        self.last_mem_text = "unknown"
+        self.last_mem_sample_ms = -SAMPLE_MS
         self.boot_ms = _ticks_ms()
 
     def draw_icon(self, lcd, cx, cy, selected, monochrome=False):
@@ -72,6 +74,7 @@ class DeviceStatusApp:
     def on_open(self, runtime):
         self.show_extra = False
         self._sample(force=True)
+        self._sample_mem(force=True)
 
     def help_lines(self, runtime):
         return [
@@ -157,10 +160,18 @@ class DeviceStatusApp:
             return "unknown"
 
     def _mem_text(self):
+        return self.last_mem_text
+
+    def _sample_mem(self, force=False):
+        now = _ticks_ms()
+        if not force and _ticks_diff(now, self.last_mem_sample_ms) < SAMPLE_MS:
+            return
+        self.last_mem_sample_ms = now
         try:
-            return str(gc.mem_free() // 1024) + " KB free"
+            gc.collect()
+            self.last_mem_text = str(gc.mem_free() // 1024) + " KB free"
         except Exception:
-            return "unknown"
+            self.last_mem_text = "unknown"
 
     def _fw_text(self):
         try:
@@ -176,8 +187,10 @@ class DeviceStatusApp:
             self.show_extra = not self.show_extra
         if buttons.pressed("B"):
             self._sample(force=True)
+            self._sample_mem(force=True)
         else:
             self._sample(force=False)
+            self._sample_mem(force=False)
 
         lcd = runtime.lcd
         draw_window_shell(lcd, "Device Status", runtime.wifi.status())
@@ -197,7 +210,7 @@ class DeviceStatusApp:
             lcd.text(fit_text("Wi-Fi " + self._wifi_text(runtime), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y, BLACK)
             uptime_seconds = max(0, _ticks_diff(_ticks_ms(), self.boot_ms) // 1000)
             lcd.text(fit_text("Up    " + _format_uptime(uptime_seconds), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 18, BLACK)
-            lcd.text(fit_text("FW    " + self._fw_text(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 36, CYAN)
+            lcd.text(fit_text("FW    " + self._fw_text(), WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 36, BLUE)
             lcd.text(fit_text("Page  extended", WINDOW_TEXT_CHARS), WINDOW_CONTENT_X, y + 54, GRAY)
         else:
             if self.last_voltage is not None:

@@ -12,6 +12,7 @@ The device now boots into a monochrome desktop instead of jumping straight into 
 
 Included apps:
 - `Galaxy`: the original galaxy/system/planet explorer
+- `PipBoy`: full-screen retro-futurist terminal with live weather, space, and market feeds
 - `Wi-Fi`: status, scan, join flow, saved passwords, and boot-time reconnect to remembered networks
 - `Browser`: bookmark-only faux web browser with API-backed pages
 - `Server`: on-demand local web dashboard with JSON APIs while the app stays open
@@ -37,7 +38,7 @@ Desktop shell notes:
 - `Y` now opens a contextual help/about dialog on the desktop and inside apps, so most static control footers are gone
 - `Games`, `Calculator`, `Status`, and `Wi-Fi` now use more Explorer/control-panel style list and field chrome
 - arcade apps such as `Mines`, `Invaders`, `Pac-Man`, `Arkanoid`, and `Tetris` now live inside the desktop `Games` folder
-- immersive apps such as `Galaxy` and `Paint` stay full screen
+- immersive apps such as `Galaxy`, `PipBoy`, and `Paint` stay full screen
 
 ## Controls
 
@@ -58,6 +59,7 @@ App-specific notes:
 - `Desktop`: D-pad moves the pointer, `Top (A)` opens or closes `Start`, `Bottom (B)` clicks the icon or taskbar item under the pointer, `X` snaps back to the current icon, and `Y` opens desktop help
 - `Taskbar`: move the pointer onto `Start` or the tray, then press `Bottom (B)` to open them
 - `Galaxy`: the galaxy and selector maps now show a center reticle with parallax star motion, while the system and planet views use a floating scanner window in the top-right; `Top (A)` backs out, `Bottom (B)` enters, and `X` recenters the current target or snaps the system view back to the first planet
+- `PipBoy`: opens full screen with `STAT`, `DATA`, `RADIO`, and `MAP` tabs. `Left/Right` changes tabs, `Up/Down` changes the focused panel or item, `Bottom (B)` activates or refreshes the current section, `Top (A)` toggles the section mode, and `X` runs a tab-specific quick action such as full refresh, tuned-feed refresh, or map recenter
 - `Wi-Fi`: open it from the tray or `Start`. It opens in a maximized network window, `Top (A)` backs out, `Bottom (B)` opens or joins, `X` rescans network lists, and `X` also cycles password keyboard pages
 - `Browser`: opens on `about:bookmarks`; `Up/Down` picks bookmarks or links, `Left/Right` switches top-level sites, `Bottom (B)` opens or reloads, `Top (A)` goes back, and `X` jumps ahead to the next site
 - `Server`: hosts a local web dashboard only while the app is open; `Top (A)` switches overview vs detail pages, `Bottom (B)` restarts the listener, and `X` clears request metrics
@@ -143,6 +145,27 @@ It can:
 Current limits:
 - it depends on Wi-Fi connectivity and a working `urequests` client on the device
 - the built-in city list is static in this repo version
+
+## PipBoy App Notes
+
+The PipBoy app is a full-screen Fallout-style terminal view with live data and offline fallback.
+
+It uses:
+- `Open-Meteo` for Mojave weather conditions
+- NASA `APOD` for the orbital bulletin feed
+- `Frankfurter` for the market tape / caps exchange panel
+
+It can:
+- show live or cached data across `STAT`, `DATA`, `RADIO`, and `MAP`
+- cache the last successful weather, space, and market payloads in `pipboy_state.json`
+- stay usable when Wi-Fi is down by showing stale cached content and local faux data
+- tune themed radio stations, including live weather, space, and market channels
+- show a faux wasteland map with live telemetry sidebars
+
+Current limits:
+- all internet-backed sections depend on Wi-Fi connectivity plus a working JSON HTTP client on the device
+- the map is stylized and offline, not a real geographic tile map
+- the NASA feed uses the public `DEMO_KEY`, so heavy repeated polling is not a goal for this app
 
 ## Browser App Notes
 
